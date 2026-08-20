@@ -10,7 +10,7 @@ const API_BASE = '';
 /**
  * Service to manage the editable catalog of heritage sites.
  * Connects directly to the Node.js / Express REST API (/api/sites)
- * with robust offline caching and reactive client updates.
+ * with instant client updates and automatic server synchronization.
  */
 export const HeritageDataStore = {
   _isInitialized: false,
@@ -76,7 +76,7 @@ export const HeritageDataStore = {
   /**
    * Saves a modified heritage site (updates both global server DB and local cache).
    */
-  saveSite(updatedSite: HeritageSite): { success: boolean; site: HeritageSite } {
+  async saveSite(updatedSite: HeritageSite): Promise<{ success: boolean; site: HeritageSite }> {
     try {
       const sites = this.getAllSites();
       const index = sites.findIndex((s) => s.id === updatedSite.id);
@@ -90,14 +90,26 @@ export const HeritageDataStore = {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(sites));
       this.notifySubscribers();
 
-      // Async persist to global backend database
-      fetch(`${API_BASE}/api/sites/${encodeURIComponent(updatedSite.id)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedSite)
-      }).catch((err) => {
-        console.warn('[HeritageDataStore] Backend PUT failed, saved locally:', err);
-      });
+      // Persist to global backend database
+      try {
+        const res = await fetch(`${API_BASE}/api/sites/${encodeURIComponent(updatedSite.id)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedSite)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.data) {
+            const freshSites = this.getAllSites();
+            const idx = freshSites.findIndex((s) => s.id === updatedSite.id);
+            if (idx >= 0) freshSites[idx] = data.data;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(freshSites));
+            this.notifySubscribers();
+          }
+        }
+      } catch (err) {
+        console.warn('[HeritageDataStore] Backend PUT offline/failed:', err);
+      }
 
       return { success: true, site: updatedSite };
     } catch (error) {
@@ -109,7 +121,7 @@ export const HeritageDataStore = {
   /**
    * Adds a new heritage site globally.
    */
-  addNewSite(newSite: HeritageSite): { success: boolean; site: HeritageSite } {
+  async addNewSite(newSite: HeritageSite): Promise<{ success: boolean; site: HeritageSite }> {
     const sites = this.getAllSites();
     // Ensure unique ID
     let finalId = newSite.id?.trim() || `site-${Date.now()}`;
@@ -129,14 +141,26 @@ export const HeritageDataStore = {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sites));
     this.notifySubscribers();
 
-    // Async persist to global backend database
-    fetch(`${API_BASE}/api/sites`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(completeSite)
-    }).catch((err) => {
-      console.warn('[HeritageDataStore] Backend POST failed, saved locally:', err);
-    });
+    // Persist to global backend database
+    try {
+      const res = await fetch(`${API_BASE}/api/sites`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(completeSite)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.data) {
+          const freshSites = this.getAllSites();
+          const idx = freshSites.findIndex((s) => s.id === completeSite.id);
+          if (idx >= 0) freshSites[idx] = data.data;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(freshSites));
+          this.notifySubscribers();
+        }
+      }
+    } catch (err) {
+      console.warn('[HeritageDataStore] Backend POST offline/failed:', err);
+    }
 
     return { success: true, site: completeSite };
   },
@@ -144,19 +168,21 @@ export const HeritageDataStore = {
   /**
    * Deletes a heritage site by ID globally.
    */
-  deleteSite(id: string): boolean {
+  async deleteSite(id: string): Promise<boolean> {
     try {
       const sites = this.getAllSites();
       const filtered = sites.filter((s) => s.id !== id);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
       this.notifySubscribers();
 
-      // Async persist to global backend database
-      fetch(`${API_BASE}/api/sites/${encodeURIComponent(id)}`, {
-        method: 'DELETE'
-      }).catch((err) => {
-        console.warn('[HeritageDataStore] Backend DELETE failed, deleted locally:', err);
-      });
+      // Persist to global backend database
+      try {
+        await fetch(`${API_BASE}/api/sites/${encodeURIComponent(id)}`, {
+          method: 'DELETE'
+        });
+      } catch (err) {
+        console.warn('[HeritageDataStore] Backend DELETE offline/failed:', err);
+      }
 
       return true;
     } catch (error) {
@@ -168,17 +194,27 @@ export const HeritageDataStore = {
   /**
    * Resets all heritage sites back to the official default baseline.
    */
-  resetToDefaults(): HeritageSite[] {
+  async resetToDefaults(): Promise<HeritageSite[]> {
     try {
       localStorage.removeItem(STORAGE_KEY);
       this.notifySubscribers();
 
       // Reset backend database
-      fetch(`${API_BASE}/api/sites/reset`, {
-        method: 'POST'
-      }).catch((err) => {
+      try {
+        const res = await fetch(`${API_BASE}/api/sites/reset`, {
+          method: 'POST'
+        });
+        if (res.ok) {
+          const json = await res.json();
+          if (json.data) {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(json.data));
+            this.notifySubscribers();
+            return json.data;
+          }
+        }
+      } catch (err) {
         console.warn('[HeritageDataStore] Backend reset failed:', err);
-      });
+      }
 
       return JSON.parse(JSON.stringify(DELHI_HERITAGE_SITES));
     } catch (error) {
@@ -253,7 +289,7 @@ export const HeritageDataStore = {
    */
   subscribe(callback: () => void): () => void {
     if (typeof window === 'undefined') return () => {};
-    // Trigger server sync once on first subscriber
+    // Trigger server sync immediately on first subscriber
     this.init();
     const handler = () => callback();
     window.addEventListener(EVENT_NAME, handler);
@@ -262,3 +298,8 @@ export const HeritageDataStore = {
     };
   }
 };
+
+// Automatically initialize sync on module load in browser
+if (typeof window !== 'undefined') {
+  HeritageDataStore.init();
+}

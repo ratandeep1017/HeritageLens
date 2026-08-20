@@ -197,17 +197,18 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
   };
 
   // Execute Save
-  const handleConfirmSave = () => {
+  // Execute Save
+  const handleConfirmSave = async () => {
     if (!editingSite) return;
 
     try {
-      HeritageDataStore.saveSite(editingSite);
+      await HeritageDataStore.saveSite(editingSite);
       setIsDirty(false);
       setIsSaveConfirmModalOpen(false);
       refreshSites();
       showToast(
         currentLang === 'en' 
-          ? `Saved changes for "${editingSite.name}"! Synced across all public views.` 
+          ? `Saved changes for "${editingSite.name}"! Synced globally.` 
           : `"${editingSite.hindiName || editingSite.name}" के बदलाव सहेजे गए!`,
         'success'
       );
@@ -231,8 +232,8 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
   };
 
   // Reset to defaults
-  const handleConfirmResetAll = () => {
-    const defaults = HeritageDataStore.resetToDefaults();
+  const handleConfirmResetAll = async () => {
+    const defaults = await HeritageDataStore.resetToDefaults();
     setSites(defaults);
     if (defaults.length > 0) {
       setSelectedSiteId(defaults[0].id);
@@ -241,11 +242,11 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
     }
     setIsDirty(false);
     setIsResetConfirmModalOpen(false);
-    showToast(currentLang === 'en' ? 'Catalog restored to 10 verified factory default records.' : 'सभी 10 मूल स्मारक रिकॉर्ड पुनर्स्थापित किए गए।', 'info');
+    showToast(currentLang === 'en' ? 'Catalog restored to verified baseline records.' : 'सभी मूल स्मारक रिकॉर्ड पुनर्स्थापित किए गए।', 'info');
   };
 
   // Create new blank or templated site
-  const handleCreateNewSite = (templateId?: string) => {
+  const handleCreateNewSite = async (templateId?: string) => {
     let base: Partial<HeritageSite> = {
       id: `monument-${Date.now().toString().slice(-4)}`,
       name: 'New Heritage Monument',
@@ -291,7 +292,7 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
       }
     }
 
-    const { site } = HeritageDataStore.addNewSite(base as HeritageSite);
+    const { site } = await HeritageDataStore.addNewSite(base as HeritageSite);
     refreshSites();
     setSelectedSiteId(site.id);
     setEditingSite(site);
@@ -311,10 +312,10 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
   };
 
   // Confirm Delete Site
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!sitePendingDelete) return;
     const deletedName = sitePendingDelete.name;
-    HeritageDataStore.deleteSite(sitePendingDelete.id);
+    await HeritageDataStore.deleteSite(sitePendingDelete.id);
     setSitePendingDelete(null);
     setIsDeleteConfirmModalOpen(false);
     refreshSites();

@@ -49,11 +49,10 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
   const [showKeyModal, setShowKeyModal] = useState(false);
 
   useEffect(() => {
-    const handleUpdate = () => {
+    const unsubscribe = HeritageDataStore.subscribe(() => {
       setHeritageSites(HeritageDataStore.getAllSites());
-    };
-    window.addEventListener('heritagelens_heritage_data_updated', handleUpdate);
-    return () => window.removeEventListener('heritagelens_heritage_data_updated', handleUpdate);
+    });
+    return unsubscribe;
   }, []);
 
   const isDemoMode = StorageService.isDemoMode();
