@@ -32,7 +32,7 @@ import {
 } from 'lucide-react';
 import { StorageService } from '../services/storage';
 import { testGeminiConnection, getStoredGeminiKey, createDemoRecognitionResult } from '../services/geminiService';
-import { HeritageDataStore } from '../services/heritageDataStore';
+import { HeritageDataStore, useHeritageSites } from '../services/heritageDataStore';
 import { HeritageSite } from '../types';
 import { HeritageSiteAdminManager } from '../components/HeritageSiteAdminManager';
 import { SecurityAndTestPlanSection } from '../components/SecurityAndTestPlanSection';
@@ -68,8 +68,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ currentLang, onLangCha
   // Active App Mode: 'gemini' | 'demo'
   const [activeMode, setActiveMode] = useState<'gemini' | 'demo'>('demo');
   
-  // Dynamic Heritage Sites (single source of truth)
-  const [heritageSites, setHeritageSites] = useState<HeritageSite[]>(() => HeritageDataStore.getAllSites());
+  // Dynamic Heritage Sites (single source of truth with real-time sync)
+  const { sites: heritageSites } = useHeritageSites();
   const [selectedDemoSiteId, setSelectedDemoSiteId] = useState<string>('red-fort');
 
   useEffect(() => {
@@ -91,12 +91,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ currentLang, onLangCha
       setStatus('not_configured');
       setIsEditingKey(true);
     }
-
-    // Subscribe to heritage site data updates
-    const unsubscribe = HeritageDataStore.subscribe(() => {
-      setHeritageSites(HeritageDataStore.getAllSites());
-    });
-    return unsubscribe;
   }, [location.search]);
 
   const triggerToast = (msg: string) => {

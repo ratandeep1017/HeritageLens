@@ -26,7 +26,7 @@ import { ImageInput } from '../components/ImageInput';
 import { ApiKeyPromptModal } from '../components/ApiKeyPromptModal';
 import { identifyHeritageImage, getStoredGeminiKey } from '../services/geminiService';
 import { StorageService } from '../services/storage';
-import { HeritageDataStore } from '../services/heritageDataStore';
+import { HeritageDataStore, useHeritageSites } from '../services/heritageDataStore';
 import { HeritageSite, IdentificationResult } from '../types';
 import { handleMonumentImageError } from '../utils/imageFallback';
 
@@ -50,8 +50,8 @@ const CATEGORIES = [
 export const ExplorePage: React.FC<ExplorePageProps> = ({ currentLang, onLangChange }) => {
   const navigate = useNavigate();
 
-  // Dynamic Heritage Sites (single source of truth)
-  const [heritageSites, setHeritageSites] = useState<HeritageSite[]>(() => HeritageDataStore.getAllSites());
+  // Dynamic Heritage Sites (single source of truth with real-time sync)
+  const { sites: heritageSites } = useHeritageSites();
 
   // Identification State
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -63,13 +63,6 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ currentLang, onLangCha
   // Local collection search/filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
-
-  useEffect(() => {
-    const unsubscribe = HeritageDataStore.subscribe(() => {
-      setHeritageSites(HeritageDataStore.getAllSites());
-    });
-    return unsubscribe;
-  }, []);
 
   // Loading animation step simulator
   const loadingSteps = useMemo(() => [

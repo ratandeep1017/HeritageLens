@@ -1,29 +1,37 @@
+import { useState, useEffect } from 'react';
 import { DELHI_HERITAGE_SITES } from '../data/heritageSites';
 import { HeritageSite } from '../types';
 
 const STORAGE_KEY = 'heritagelens_custom_heritage_sites_v2';
 const EVENT_NAME = 'heritagelens_heritage_data_updated';
 
-// API Base URL (Relative in production / proxied in development)
+// Relative API Base URL
 const API_BASE = '';
 
 /**
  * Service to manage the editable catalog of heritage sites.
  * Connects directly to the Node.js / Express REST API (/api/sites)
- * with instant client updates and automatic server synchronization.
+ * with instant client updates and automatic multi-browser synchronization.
  */
 export const HeritageDataStore = {
-  _isInitialized: false,
-
   /**
-   * Initializes the store by synchronizing with the global backend API.
+   * Initializes the store and registers window focus sync.
    */
   init(): void {
-    if (this._isInitialized) return;
-    this._isInitialized = true;
-    this.syncWithServer().catch(() => {
-      // Offline fallback: already loaded from local cache
-    });
+    this.syncWithServer().catch(() => {});
+
+    if (typeof window !== 'undefined') {
+      // Auto re-sync whenever user focuses the tab
+      window.addEventListener('focus', () => {
+        this.syncWithServer().catch(() => {});
+      });
+      // Also sync across tabs via storage event
+      window.addEventListener('storage', (e) => {
+        if (e.key === STORAGE_KEY) {
+          this.notifySubscribers();
+        }
+      });
+    }
   },
 
   /**
@@ -31,7 +39,7 @@ export const HeritageDataStore = {
    */
   async syncWithServer(): Promise<HeritageSite[]> {
     try {
-      const res = await fetch(`${API_BASE}/api/sites`);
+      const res = await fetch(`${API_BASE}/api/sites?_t=${Date.now()}`);
       if (res.ok) {
         const json = await res.json();
         if (json.success && Array.isArray(json.data) && json.data.length > 0) {
@@ -289,8 +297,6 @@ export const HeritageDataStore = {
    */
   subscribe(callback: () => void): () => void {
     if (typeof window === 'undefined') return () => {};
-    // Trigger server sync immediately on first subscriber
-    this.init();
     const handler = () => callback();
     window.addEventListener(EVENT_NAME, handler);
     return () => {
@@ -298,6 +304,41 @@ export const HeritageDataStore = {
     };
   }
 };
+
+/**
+ * React Hook for real-time, auto-syncing heritage sites data.
+ */
+export function useHeritageSites() {
+  const [sites, setSites] = useState<HeritageSite[]>(() => HeritageDataStore.getAllSites());
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+
+    // Initial server fetch on mount
+    HeritageDataStore.syncWithServer().then((freshSites) => {
+      if (isMounted && freshSites && freshSites.length > 0) {
+        setSites(freshSites);
+        setIsLoading(false);
+      }
+    });
+
+    // Real-time subscriber
+    const unsubscribe = HeritageDataStore.subscribe(() => {
+      if (isMounted) {
+        setSites(HeritageDataStore.getAllSites());
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      unsubscribe();
+    };
+  }, []);
+
+  return { sites, isLoading };
+}
 
 // Automatically initialize sync on module load in browser
 if (typeof window !== 'undefined') {

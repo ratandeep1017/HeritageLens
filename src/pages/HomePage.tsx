@@ -23,7 +23,7 @@ import {
   Play
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HeritageDataStore } from '../services/heritageDataStore';
+import { HeritageDataStore, useHeritageSites } from '../services/heritageDataStore';
 import { HeritageSite } from '../types';
 import { UPCOMING_REGIONS } from '../data/upcomingRegions';
 import { StorageService } from '../services/storage';
@@ -40,20 +40,13 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
   const navigate = useNavigate();
   const captureSectionRef = useRef<HTMLDivElement | null>(null);
 
-  const [heritageSites, setHeritageSites] = useState<HeritageSite[]>(() => HeritageDataStore.getAllSites());
+  const { sites: heritageSites } = useHeritageSites();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [suggestionSubmitted, setSuggestionSubmitted] = useState(false);
   const [suggestedMonument, setSuggestedMonument] = useState('');
   const [showKeyModal, setShowKeyModal] = useState(false);
-
-  useEffect(() => {
-    const unsubscribe = HeritageDataStore.subscribe(() => {
-      setHeritageSites(HeritageDataStore.getAllSites());
-    });
-    return unsubscribe;
-  }, []);
 
   const isDemoMode = StorageService.isDemoMode();
   const hasApiKey = Boolean(StorageService.getApiKey()) && !isDemoMode;

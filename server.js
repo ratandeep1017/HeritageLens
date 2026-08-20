@@ -125,34 +125,45 @@ app.get('/api/sites/:id', (req, res) => {
   }
 });
 
-// 4. PUT update existing heritage site
+// 4. PUT update or insert (upsert) heritage site
 app.put('/api/sites/:id', (req, res) => {
   try {
     const { id } = req.params;
     const updatedData = req.body;
+    if (!updatedData) {
+      return res.status(400).json({ success: false, error: 'Request body cannot be empty.' });
+    }
+
     const sites = readSitesFromDb();
     const index = sites.findIndex((s) => s.id === id || s.id.toLowerCase() === id.toLowerCase());
 
-    if (index === -1) {
-      return res.status(404).json({ success: false, error: `Heritage site '${id}' not found` });
+    const finalSite = {
+      ...(index >= 0 ? sites[index] : {}),
+      ...updatedData,
+      id: id || updatedData.id
+    };
+
+    if (index >= 0) {
+      sites[index] = finalSite;
+    } else {
+      sites.push(finalSite);
     }
 
-    // Preserve id and merge updated fields
-    sites[index] = { ...sites[index], ...updatedData, id: sites[index].id };
     writeSitesToDb(sites);
+    console.log(`[HeritageLens DB] Upserted site '${finalSite.id}' (${finalSite.name || 'Unnamed'}) - Total in DB: ${sites.length}`);
 
-    console.log(`[HeritageLens DB] Updated site '${id}' (${sites[index].name})`);
     res.json({
       success: true,
-      message: `Site '${sites[index].name}' updated successfully in global database.`,
-      data: sites[index]
+      message: `Site '${finalSite.name || finalSite.id}' saved successfully in global database.`,
+      data: finalSite
     });
   } catch (error) {
+    console.error('PUT /api/sites/:id error:', error);
     res.status(500).json({ success: false, error: 'Failed to update heritage site' });
   }
 });
 
-// 5. POST add new heritage site
+// 5. POST add new heritage site (upserts if id exists)
 app.post('/api/sites', (req, res) => {
   try {
     const newSite = req.body;
@@ -161,22 +172,24 @@ app.post('/api/sites', (req, res) => {
     }
 
     const sites = readSitesFromDb();
-    const existingIndex = sites.findIndex((s) => s.id === newSite.id);
+    const existingIndex = sites.findIndex((s) => s.id === newSite.id || s.id.toLowerCase() === newSite.id.toLowerCase());
 
     if (existingIndex !== -1) {
-      return res.status(409).json({ success: false, error: `A site with ID '${newSite.id}' already exists.` });
+      sites[existingIndex] = { ...sites[existingIndex], ...newSite };
+    } else {
+      sites.push(newSite);
     }
 
-    sites.push(newSite);
     writeSitesToDb(sites);
+    console.log(`[HeritageLens DB] Saved site '${newSite.id}' (${newSite.name}) - Total in DB: ${sites.length}`);
 
-    console.log(`[HeritageLens DB] Added new site '${newSite.id}' (${newSite.name})`);
     res.status(201).json({
       success: true,
       message: `Site '${newSite.name}' added successfully.`,
       data: newSite
     });
   } catch (error) {
+    console.error('POST /api/sites error:', error);
     res.status(500).json({ success: false, error: 'Failed to add heritage site' });
   }
 });
