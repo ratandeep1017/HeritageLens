@@ -1,0 +1,10 @@
+{
+  "name": "HeritageLens AI",
+  "description": "Discover Indian heritage through photographs with AI-assisted identification, cultural insights, and audio narration.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

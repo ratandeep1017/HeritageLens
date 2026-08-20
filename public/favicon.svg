@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2C4A3E" />
+      <stop offset="100%" stop-color="#182E25" />
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F3D79F" />
+      <stop offset="50%" stop-color="#D4AF37" />
+      <stop offset="100%" stop-color="#AA821C" />
+    </linearGradient>
+    <linearGradient id="sandstone" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E27D60" />
+      <stop offset="100%" stop-color="#C05E42" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.35" />
+    </filter>
+  </defs>
+
+  <!-- Background Rounded Canvas -->
+  <rect width="512" height="512" rx="112" fill="url(#bg)" />
+
+  <!-- Outer Decorative Ring -->
+  <circle cx="256" cy="256" r="210" fill="none" stroke="url(#gold)" stroke-width="3" stroke-dasharray="8 8" opacity="0.4" />
+  <circle cx="256" cy="256" r="192" fill="none" stroke="url(#gold)" stroke-width="1.5" opacity="0.6" />
+
+  <!-- Center Heritage Monument Emblem -->
+  <g filter="url(#shadow)">
+    <!-- Base Platform -->
+    <path d="M 120 380 L 392 380 L 376 404 L 136 404 Z" fill="url(#gold)" />
+    <path d="M 148 356 L 364 356 L 354 380 L 158 380 Z" fill="url(#sandstone)" />
+
+    <!-- Central Grand Arch & Jali Structure -->
+    <path d="M 196 356 L 196 248 C 196 188 256 160 256 160 C 256 160 316 188 316 248 L 316 356 Z" fill="url(#gold)" />
+    <path d="M 216 356 L 216 260 C 216 216 256 196 256 196 C 256 196 296 216 296 260 L 296 356 Z" fill="url(#bg)" />
+
+    <!-- Dome Finial -->
+    <path d="M 256 112 C 244 140 236 156 236 168 L 276 168 C 276 156 268 140 256 112 Z" fill="url(#gold)" />
+    <circle cx="256" cy="100" r="8" fill="url(#gold)" />
+
+    <!-- Side Minarets / Pillars -->
+    <rect x="140" y="220" width="24" height="136" rx="4" fill="url(#sandstone)" />
+    <path d="M 136 220 L 168 220 L 152 196 Z" fill="url(#gold)" />
+    
+    <rect x="348" y="220" width="24" height="136" rx="4" fill="url(#sandstone)" />
+    <path d="M 344 220 L 376 220 L 360 196 Z" fill="url(#gold)" />
+
+    <!-- Sparkle AI Stars -->
+    <path d="M 256 240 Q 256 256 272 256 Q 256 256 256 272 Q 256 256 240 256 Q 256 256 256 240 Z" fill="url(#gold)" />
+    <path d="M 370 140 Q 370 152 382 152 Q 370 152 370 164 Q 370 152 358 152 Q 370 152 370 140 Z" fill="url(#gold)" />
+    <path d="M 142 140 Q 142 152 154 152 Q 142 152 142 164 Q 142 152 130 152 Q 142 152 142 140 Z" fill="url(#gold)" />
+  </g>
+</svg>

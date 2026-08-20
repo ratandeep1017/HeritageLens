@@ -1,0 +1,50 @@
+{
+  "name": "HeritageLens AI — Discover India's Heritage",
+  "short_name": "HeritageLens",
+  "description": "Visual AI recognition, architectural analysis, and verified audio stories for India's historic monuments.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#FDFBF7",
+  "theme_color": "#2C4A3E",
+  "lang": "en",
+  "categories": ["education", "travel", "culture", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Identify Monument",
+      "short_name": "Identify",
+      "description": "Snap or upload a photo to identify a monument",
+      "url": "/?action=capture",
+      "icons": [{ "src": "/icons/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Explore Catalog",
+      "short_name": "Explore",
+      "description": "Browse Delhi heritage sites",
+      "url": "/explore",
+      "icons": [{ "src": "/icons/icon-192.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Admin Settings",
+      "short_name": "Admin",
+      "description": "Manage monument catalog",
+      "url": "/profile?tab=admin",
+      "icons": [{ "src": "/icons/icon-192.svg", "sizes": "192x192" }]
+    }
+  ]
+}
