@@ -681,23 +681,6 @@ export const ImageInput: React.FC<ImageInputProps> = ({
                 </div>
               </div>
             </div>
-
-            {/* HTTPS & Browser Permissions Information Note */}
-            <div className="p-4 rounded-2xl bg-[#F3EEE7] border border-[#E8E2D9] flex items-start gap-3 text-xs text-[#5C544E]">
-              <Info className="w-4 h-4 text-[#C05E42] shrink-0 mt-0.5" />
-              <div className="space-y-1">
-                <p className="font-semibold text-[#1A1A1A]">
-                  {currentLang === 'en'
-                    ? 'Camera Security & Privacy Notice'
-                    : 'कैमरा सुरक्षा और गोपनीयता सूचना'}
-                </p>
-                <p className="leading-relaxed">
-                  {currentLang === 'en'
-                    ? 'Live camera streaming requires HTTPS or localhost and browser camera permission. Images are processed locally on your device and compressed before AI identification.'
-                    : 'लाइव कैमरा के लिए HTTPS या localhost और ब्राउज़र अनुमति आवश्यक है। छवियाँ आपके डिवाइस पर सुरक्षित रूप से प्रोसेस की जाती हैं।'}
-                </p>
-              </div>
-            </div>
           </motion.div>
         )}
       </AnimatePresence>

@@ -8,13 +8,22 @@ interface NavbarProps {
   onLangChange: (lang: 'en' | 'hi') => void;
 }
 
+interface NavLinkItem {
+  to: string;
+  labelEn: string;
+  labelHi: string;
+  icon: React.ComponentType<{ className?: string }>;
+  id: string;
+  badge?: string;
+}
+
 export const Navbar: React.FC<NavbarProps> = ({ currentLang, onLangChange }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const hasApiKey = Boolean(StorageService.getApiKey());
   const isDemoMode = StorageService.isDemoMode();
 
-  const navLinks = [
+  const navLinks: NavLinkItem[] = [
     {
       to: '/',
       labelEn: 'Home',
@@ -26,7 +35,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentLang, onLangChange }) => 
       to: '/explore',
       labelEn: 'Explore',
       labelHi: 'अन्वेषण',
-      badge: '10 Sites',
       icon: Compass,
       id: 'nav-explore'
     },
@@ -36,13 +44,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentLang, onLangChange }) => 
       labelHi: 'सेटिंग्स',
       icon: Key,
       id: 'nav-profile'
-    },
-    {
-      to: '/profile?tab=admin',
-      labelEn: 'Admin',
-      labelHi: 'व्यवस्थापक',
-      icon: ShieldCheck,
-      id: 'nav-admin'
     }
   ];
 
@@ -70,8 +71,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentLang, onLangChange }) => 
               </span>
               <p className="text-[10px] text-[#8C8276] font-semibold tracking-wider uppercase flex items-center gap-1 leading-none mt-0.5">
                 <span className="truncate">{currentLang === 'en' ? "India's Cultural Lens" : 'भारतीय धरोहर'}</span>
-                <span className="text-[#D4AF37]">•</span>
-                <span className="text-[#C05E42] font-bold shrink-0">Pilot 10</span>
               </p>
             </div>
           </Link>
@@ -145,22 +144,6 @@ export const Navbar: React.FC<NavbarProps> = ({ currentLang, onLangChange }) => 
               </button>
             </div>
 
-            {/* API Status Badge */}
-            <Link
-              to="/profile"
-              id="profile-nav-link"
-              className="hidden sm:flex items-center gap-2 min-h-[38px] px-3.5 py-1.5 rounded-xl border border-[#E8E2D9] bg-white hover:border-[#D4AF37] text-xs font-semibold text-[#2D2926] shadow-2xs transition-colors focus-visible:ring-2 focus-visible:ring-[#C05E42]"
-            >
-              <span
-                className={`w-2 h-2 rounded-full ${
-                  hasApiKey && !isDemoMode ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
-                }`}
-              />
-              <span className="text-[11px] whitespace-nowrap">
-                {hasApiKey && !isDemoMode ? 'Gemini 2.5 Active' : 'Demo Mode'}
-              </span>
-            </Link>
-
             {/* Mobile Menu Drawer Toggle */}
             <button
               id="mobile-menu-toggle-btn"
@@ -213,21 +196,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentLang, onLangChange }) => 
               );
             })}
 
-            <div className="pt-2 border-t border-[#E8E2D9] flex items-center justify-between text-xs text-[#5C544E] px-1 py-1">
-              <span className="flex items-center gap-1.5">
-                <span
-                  className={`w-2 h-2 rounded-full ${
-                    hasApiKey && !isDemoMode ? 'bg-emerald-500' : 'bg-amber-500'
-                  }`}
-                />
-                {hasApiKey && !isDemoMode ? 'Gemini 2.5 Active' : 'Demo Mode Active'}
-              </span>
+            <div className="pt-2 border-t border-[#E8E2D9] flex items-center justify-end text-xs text-[#5C544E] px-1 py-1">
               <Link
                 to="/profile"
                 onClick={() => setMobileMenuOpen(false)}
                 className="text-[#C05E42] font-bold hover:underline py-1 px-2 focus-visible:ring-2 focus-visible:ring-[#C05E42] rounded-lg"
               >
-                {currentLang === 'en' ? 'Manage Key →' : 'कुंजी प्रबंधित करें →'}
+                {currentLang === 'en' ? 'Settings & Preferences →' : 'सेटिंग्स एवं प्राथमिकताएं →'}
               </Link>
             </div>
           </div>

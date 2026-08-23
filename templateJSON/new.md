@@ -1,3 +1,7 @@
+there is one issue that, i cant add new sites even manually, when it is connected to render. its only working on local storage, not on actual database. 
+
+---
+
 ```json
 {
   "id": "unique-site-id",
@@ -69,22 +73,13 @@
 
 ```txt
 id: lowercase, hyphenated, unique (e.g., humayuns-tomb, qutub-minar).
-
 name / hindiName: official or commonly used name.
-
 shortDescription / hindiShortDescription: 1 sentence, user-friendly.
-
 fullHistory / hindiFullHistory: concise but informative; avoid copying long copyrighted texts.
-
 builtYear, builtBy, architecturalStyle: as precise as reliable sources allow.
-
 interestingFacts / folkloreOrLegends: keep facts verifiable; label legends clearly.
-
 travelTips: keep up-to-date; verify fees/timings from ASI or official site.
-
 nearbyAttractions: 2–5 key sites within ~2 km.
-
 imageUrl / imageAlt: use images you have rights to (Unsplash, Wikimedia Commons, own photos).
-
 tags: useful for filtering (period, style, location, type, UNESCO, etc.).
 ```

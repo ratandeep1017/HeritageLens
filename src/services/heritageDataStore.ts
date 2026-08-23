@@ -55,22 +55,36 @@ export const HeritageDataStore = {
   },
 
   /**
-   * Returns all heritage sites (from memory / local cache or default 11 sites).
+   * Returns all heritage sites (from memory / local cache, merged with baseline 11 sites).
    */
   getAllSites(): HeritageSite[] {
+    const baseSites = JSON.parse(JSON.stringify(DELHI_HERITAGE_SITES)) as HeritageSite[];
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          // Merge baseSites and custom stored sites by ID
+          const mergedMap = new Map<string, HeritageSite>();
+          // Put base sites first
+          for (const s of baseSites) {
+            if (s && s.id) mergedMap.set(s.id.toLowerCase(), s);
+          }
+          // Merge / add user's customized & newly added sites
+          for (const s of parsed) {
+            if (s && s.id) {
+              const existing = mergedMap.get(s.id.toLowerCase());
+              mergedMap.set(s.id.toLowerCase(), { ...existing, ...s });
+            }
+          }
+          return Array.from(mergedMap.values());
         }
       }
     } catch (error) {
       console.warn('Failed to parse customized heritage sites from localStorage:', error);
     }
     // Return deep copy of default sites
-    return JSON.parse(JSON.stringify(DELHI_HERITAGE_SITES));
+    return baseSites;
   },
 
   /**
@@ -87,7 +101,7 @@ export const HeritageDataStore = {
   async saveSite(updatedSite: HeritageSite): Promise<{ success: boolean; site: HeritageSite }> {
     try {
       const sites = this.getAllSites();
-      const index = sites.findIndex((s) => s.id === updatedSite.id);
+      const index = sites.findIndex((s) => s.id === updatedSite.id || s.id.toLowerCase() === updatedSite.id.toLowerCase());
 
       if (index >= 0) {
         sites[index] = { ...sites[index], ...updatedSite };
@@ -131,21 +145,22 @@ export const HeritageDataStore = {
    */
   async addNewSite(newSite: HeritageSite): Promise<{ success: boolean; site: HeritageSite }> {
     const sites = this.getAllSites();
-    // Ensure unique ID
+    // Ensure clean ID
     let finalId = newSite.id?.trim() || `site-${Date.now()}`;
     finalId = finalId.toLowerCase().replace(/[^a-z0-9-_]/g, '-');
-    
-    // If ID already exists, append timestamp
-    if (sites.some((s) => s.id === finalId)) {
-      finalId = `${finalId}-${Date.now().toString().slice(-4)}`;
-    }
 
     const completeSite: HeritageSite = {
       ...newSite,
       id: finalId,
     };
 
-    sites.push(completeSite);
+    const existingIndex = sites.findIndex((s) => s.id === finalId || s.id.toLowerCase() === finalId.toLowerCase());
+    if (existingIndex >= 0) {
+      sites[existingIndex] = { ...sites[existingIndex], ...completeSite };
+    } else {
+      sites.push(completeSite);
+    }
+
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sites));
     this.notifySubscribers();
 
@@ -255,14 +270,17 @@ export const HeritageDataStore = {
   },
 
   /**
-   * Imports sites from JSON string with validation.
+   * Imports sites from JSON string with validation. Merges with existing records.
    */
-  importFromJson(jsonString: string): { success: boolean; count?: number; error?: string } {
+  async importFromJson(jsonString: string): Promise<{ success: boolean; count?: number; error?: string }> {
     try {
-      const parsed = JSON.parse(jsonString);
-      if (!Array.isArray(parsed)) {
-        return { success: false, error: 'JSON content must be an array of heritage site objects.' };
+      let parsed = JSON.parse(jsonString);
+      const isArray = Array.isArray(parsed);
+      
+      if (!isArray) {
+        parsed = [parsed];
       }
+
       if (parsed.length === 0) {
         return { success: false, error: 'The imported list is empty.' };
       }
@@ -270,14 +288,38 @@ export const HeritageDataStore = {
       // Basic field validation
       for (let i = 0; i < parsed.length; i++) {
         const item = parsed[i];
-        if (!item.id || !item.name) {
+        if (!item || typeof item !== 'object' || !item.id || !item.name) {
           return { success: false, error: `Item at index ${i} is missing required 'id' or 'name' fields.` };
         }
       }
 
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(parsed));
+      const existingSites = this.getAllSites();
+      let importedCount = 0;
+
+      for (const item of parsed) {
+        const index = existingSites.findIndex((s) => s.id === item.id || s.id.toLowerCase() === item.id.toLowerCase());
+        if (index >= 0) {
+          existingSites[index] = { ...existingSites[index], ...item };
+        } else {
+          existingSites.push(item);
+        }
+        importedCount++;
+
+        // Persist to global backend database
+        try {
+          await fetch(`${API_BASE}/api/sites/${encodeURIComponent(item.id)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(item)
+          });
+        } catch (err) {
+          console.warn('[HeritageDataStore] Backend PUT offline/failed for imported site:', item.id, err);
+        }
+      }
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(existingSites));
       this.notifySubscribers();
-      return { success: true, count: parsed.length };
+      return { success: true, count: importedCount };
     } catch (err: any) {
       return { success: false, error: err?.message || 'Invalid JSON syntax' };
     }

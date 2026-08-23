@@ -462,7 +462,6 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ currentLang, onLangCha
                       src={site.imageUrl}
                       alt={site.imageAlt || site.name}
                       onError={(e) => handleMonumentImageError(e, site.id, currentLang === 'hi' ? site.hindiName : site.name, site.imageUrl)}
-                      crossOrigin="anonymous"
                       referrerPolicy="no-referrer"
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                     />

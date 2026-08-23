@@ -5,7 +5,6 @@ import {
   ShieldAlert, 
   CheckCircle, 
   Trash2, 
-  Globe, 
   Sparkles, 
   ExternalLink, 
   RotateCw, 
@@ -28,14 +27,22 @@ import {
   Play,
   Shield,
   Sliders,
-  Building2
+  Building2,
+  Search,
+  PlusCircle,
+  Image as ImageIcon
 } from 'lucide-react';
 import { StorageService } from '../services/storage';
-import { testGeminiConnection, getStoredGeminiKey, createDemoRecognitionResult } from '../services/geminiService';
+import { 
+  testGeminiConnection, 
+  generateHeritageSiteFromSearch,
+  GenerateSiteResponse
+} from '../services/geminiService';
 import { HeritageDataStore, useHeritageSites } from '../services/heritageDataStore';
 import { HeritageSite } from '../types';
 import { HeritageSiteAdminManager } from '../components/HeritageSiteAdminManager';
 import { SecurityAndTestPlanSection } from '../components/SecurityAndTestPlanSection';
+import { VisualImagePickerModal } from '../components/VisualImagePickerModal';
 
 interface ProfilePageProps {
   currentLang: 'en' | 'hi';
@@ -65,12 +72,18 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ currentLang, onLangCha
   const [statusMessage, setStatusMessage] = useState('');
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
+  // AI Monument Search Bar state
+  const [aiSearchQuery, setAiSearchQuery] = useState('');
+  const [isAiSearching, setIsAiSearching] = useState(false);
+  const [aiSearchStep, setAiSearchStep] = useState('');
+  const [aiSearchResult, setAiSearchResult] = useState<GenerateSiteResponse | null>(null);
+  const [isVisualPickerOpen, setIsVisualPickerOpen] = useState(false);
+
   // Active App Mode: 'gemini' | 'demo'
   const [activeMode, setActiveMode] = useState<'gemini' | 'demo'>('demo');
   
   // Dynamic Heritage Sites (single source of truth with real-time sync)
   const { sites: heritageSites } = useHeritageSites();
-  const [selectedDemoSiteId, setSelectedDemoSiteId] = useState<string>('red-fort');
 
   useEffect(() => {
     // Check URL parameters for tab=admin
@@ -91,6 +104,13 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ currentLang, onLangCha
       setStatus('not_configured');
       setIsEditingKey(true);
     }
+
+    try {
+      const savedResult = sessionStorage.getItem('heritagelens_last_ai_search_result');
+      if (savedResult) {
+        setAiSearchResult(JSON.parse(savedResult));
+      }
+    } catch {}
   }, [location.search]);
 
   const triggerToast = (msg: string) => {
@@ -128,9 +148,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ currentLang, onLangCha
     setActiveMode(mode);
     StorageService.setAppMode(mode);
     triggerToast(
-      currentLang === 'en'
-        ? `Switched to ${mode === 'gemini' ? 'Gemini Live Vision Mode' : 'Demo Mode (Offline / Sample Data)'}`
-        : `${mode === 'gemini' ? 'जेमिनी लाइव विज़न मोड' : 'डेमो मोड (ऑफ़लाइन डेटा)'} में बदला गया`
+      mode === 'gemini'
+        ? (currentLang === 'en' ? '✨ Switched to Gemini Mode' : '✨ जेमिनी मोड सक्रिय')
+        : (currentLang === 'en' ? '⚡ Switched to Demo Mode' : '⚡ डेमो मोड सक्रिय')
     );
   };
 
@@ -180,8 +200,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ currentLang, onLangCha
     setStatus('testing');
     setStatusMessage(
       currentLang === 'en'
-        ? 'Sending test request to Gemini API (gemini-2.5-flash)...'
-        : 'जेमिनी 2.5 फ्लैश मॉडल के साथ कनेक्शन की जांच की जा रही है...'
+        ? 'Sending test request to Gemini API (gemini-2.0-flash)...'
+        : 'जेमिनी एपीआई मॉडल के साथ कनेक्शन की जांच की जा रही है...'
     );
 
     const testRes = await testGeminiConnection(keyToTest);
@@ -198,8 +218,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ currentLang, onLangCha
       StorageService.setAppMode('gemini');
       setStatusMessage(
         currentLang === 'en'
-          ? 'Connection successful! Gemini 2.5 Flash Vision is active for live monument identification.'
-          : 'कनेक्शन सफल! जेमिनी 2.5 फ्लैश विज़न लाइव स्मारक पहचान के लिए सक्रिय है।'
+          ? `Connection successful! ${testRes.model || 'Gemini Vision AI'} is active for live monument identification.`
+          : `कनेक्शन सफल! ${testRes.model || 'जेमिनी विज़न एआई'} लाइव स्मारक पहचान के लिए सक्रिय है।`
       );
     } else {
       setStatus('failed');
@@ -207,71 +227,62 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ currentLang, onLangCha
     }
   };
 
-  // Run Demo Recognition Flow
-  const handleLaunchDemoSite = (siteId: string) => {
-    const demoResult = createDemoRecognitionResult(siteId, undefined, currentLang);
-    StorageService.saveLastResult(demoResult);
-    navigate('/result', { state: { result: demoResult } });
-  };
+  // AI Monument Search & Dynamic Addition handler
+  const handleAiMonumentSearch = async (queryToSearch?: string) => {
+    const targetQuery = (queryToSearch || aiSearchQuery).trim();
+    if (!targetQuery) return;
 
-  // Status badge config
-  const getStatusBadge = () => {
-    if (activeMode === 'demo') {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
-          <Cpu className="w-3.5 h-3.5 text-amber-700" />
-          <span>{currentLang === 'en' ? 'Demo Mode Active' : 'डेमो मोड सक्रिय'}</span>
-        </span>
+    const key = savedKey || apiKeyInput.trim();
+    if (!key) {
+      triggerToast(
+        currentLang === 'en'
+          ? 'Please save a Gemini API Key first to use AI Search.'
+          : 'AI खोज का उपयोग करने के लिए पहले जेमिनी एपीआई कुंजी सहेजें।'
       );
+      return;
     }
 
-    switch (status) {
-      case 'connected':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-            <Check className="w-3.5 h-3.5 text-emerald-600" />
-            <span>{currentLang === 'en' ? 'Gemini Mode Connected' : 'जेमिनी मोड कनेक्टेड'}</span>
-          </span>
+    setIsAiSearching(true);
+    setAiSearchResult(null);
+    setAiSearchStep(currentLang === 'en' ? 'Consulting Gemini AI...' : 'गूगल जेमिनी एआई से परामर्श हो रहा है...');
+
+    try {
+      const res = await generateHeritageSiteFromSearch(targetQuery, key, currentLang);
+      setAiSearchResult(res);
+      try {
+        sessionStorage.setItem('heritagelens_last_ai_search_result', JSON.stringify(res));
+      } catch {}
+
+      if (res.success && res.isRealHeritageSite && res.site) {
+        triggerToast(
+          currentLang === 'en'
+            ? `✨ Successfully discovered and added "${res.site.name}" to catalog!`
+            : `✨ "${res.site.hindiName || res.site.name}" सफलतापूर्वक कैटलॉग में जोड़ा गया!`
         );
-      case 'saved_locally':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-300">
-            <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-            <span>{currentLang === 'en' ? 'Gemini Mode (Key Saved)' : 'जेमिनी मोड (कुंजी सहेजी)'}</span>
-          </span>
+      } else if (res.rejectionReason) {
+        triggerToast(
+          currentLang === 'en'
+            ? 'Place not verified as a heritage site.'
+            : 'स्थल एक धरोहर स्मारक के रूप में प्रमाणित नहीं हुआ।'
         );
-      case 'testing':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300">
-            <RotateCw className="w-3.5 h-3.5 text-amber-600 animate-spin" />
-            <span>{currentLang === 'en' ? 'Testing...' : 'जांच हो रही है...'}</span>
-          </span>
-        );
-      case 'failed':
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-rose-100 text-rose-800 border border-rose-300">
-            <XCircle className="w-3.5 h-3.5 text-rose-600" />
-            <span>{currentLang === 'en' ? 'Gemini Failed' : 'कनेक्शन विफल'}</span>
-          </span>
-        );
-      case 'not_configured':
-      default:
-        return (
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300">
-            <Cpu className="w-3.5 h-3.5 text-amber-700" />
-            <span>{currentLang === 'en' ? 'Demo Mode (No Key Required)' : 'डेमो मोड (कुंजी आवश्यक नहीं)'}</span>
-          </span>
-        );
+      }
+    } catch (err: any) {
+      const errObj = {
+        success: false,
+        isRealHeritageSite: false,
+        error: err?.message || 'AI Search encountered an error',
+      };
+      setAiSearchResult(errObj);
+      try {
+        sessionStorage.setItem('heritagelens_last_ai_search_result', JSON.stringify(errObj));
+      } catch {}
+    } finally {
+      setIsAiSearching(false);
     }
   };
 
-  const selectedSiteData = heritageSites.find((s) => s.id === selectedDemoSiteId) || heritageSites[0] || {
-    id: 'red-fort',
-    name: 'Red Fort',
-    hindiName: 'लाल किला',
-    imageUrl: 'https://images.unsplash.com/photo-1592635196078-9fdc757f27f4?auto=format&fit=crop&w=1200&q=80',
-    architecturalStyle: 'Indo-Islamic Mughal Architecture',
-    builtYear: '1638–1648 CE'
+  const handleLaunchDemoSite = (siteId: string) => {
+    navigate(`/result?site=${siteId}`);
   };
 
   return (
@@ -296,13 +307,10 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ currentLang, onLangCha
           </h1>
           <p className="text-sm text-[#5C544E] mt-1">
             {currentLang === 'en'
-              ? 'Configure Gemini API keys, operating modes, language preferences, and manage heritage site data.'
-              : 'जेमिनी एपीआई कुंजी, ऑपरेटिंग मोड, भाषा प्राथमिकताएं कॉन्फ़िगर करें और धरोहर स्थल डेटा प्रबंधित करें।'}
+              ? 'Configure Gemini API keys, operating modes, and manage heritage site data.'
+              : 'जेमिनी एपीआई कुंजी, ऑपरेटिंग मोड कॉन्फ़िगर करें और धरोहर स्थल डेटा प्रबंधित करें।'}
           </p>
         </div>
-
-        {/* Global Status Pill */}
-        <div className="shrink-0">{getStatusBadge()}</div>
       </div>
 
       {/* Primary Section Switcher Tabs */}
@@ -440,8 +448,8 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ currentLang, onLangCha
                       <h3 className="text-sm font-bold text-[#1A1A1A] font-serif-heritage">
                         {currentLang === 'en' ? 'Gemini Mode (Live Multimodal AI)' : 'जेमिनी मोड (लाइव एआई)'}
                       </h3>
-                      <span className="text-[10px] font-bold text-[#8C8276] bg-[#8C8276]/10 px-2 py-0.5 rounded-md">
-                        gemini-2.5-flash
+                      <span className="text-[10px] font-bold text-[#2C4A3E] bg-[#2C4A3E]/10 px-2 py-0.5 rounded-md">
+                        Gemini 3.5 Flash Vision
                       </span>
                     </div>
                   </div>
@@ -455,144 +463,14 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ currentLang, onLangCha
 
                 <p className="text-xs text-[#5C544E] leading-relaxed">
                   {currentLang === 'en'
-                    ? 'Sends photos to Google Gemini 2.5 Flash Vision for real-time visual reasoning, architectural identification, and confidence calculation.'
-                    : 'रीयल-टाइम विज़न रीजनिंग और वास्तुकला पहचान के लिए तस्वीरों को गूगल जेमिनी 2.5 फ्लैश मॉडल पर भेजता है।'}
+                    ? 'Sends photos to Google Gemini Vision for real-time architectural reasoning, monument identification, and confidence calculation.'
+                    : 'रीयल-टाइम विज़न रीजनिंग और वास्तुकला पहचान के लिए तस्वीरों को गूगल जेमिनी विज़न मॉडल पर भेजता है।'}
                 </p>
 
                 <div className="text-[11px] font-bold text-[#2C4A3E] pt-2 border-t border-[#E8E2D9] flex items-center justify-between">
                   <span>{activeMode === 'gemini' ? (currentLang === 'en' ? '● Currently Active' : '● वर्तमान में सक्रिय') : (currentLang === 'en' ? 'Switch to Gemini Mode' : 'जेमिनी मोड चुनें')}</span>
                   <span className="text-[10px] text-[#8C8276]">{savedKey ? (currentLang === 'en' ? 'Key Configured' : 'कुंजी तैयार') : (currentLang === 'en' ? 'Needs API Key' : 'कुंजी आवश्यक')}</span>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 1. DEMO MODE SAMPLE SELECTOR */}
-          <div 
-            id="demo-mode-evaluation-card"
-            className="bg-[#FDFBF7] border border-[#E8E2D9] rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col gap-6"
-          >
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E8E2D9] pb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-[#C05E42] text-white flex items-center justify-center shadow-2xs">
-                  <Layers className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-[#1A1A1A] font-serif-heritage">
-                    {currentLang === 'en' ? 'Demo Mode Evaluation & Sample Actions' : 'डेमो मोड मूल्यांकन एवं नमूना क्रियाएं'}
-                  </h2>
-                  <p className="text-xs text-[#5C544E]">
-                    {currentLang === 'en'
-                      ? 'Demonstrate the app without API quota or network constraints'
-                      : 'एपीआई कोटा या नेटवर्क सीमाओं के बिना ऐप का परीक्षण करें'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Quick Try Sample Button */}
-              <button
-                type="button"
-                id="try-sample-red-fort-btn"
-                onClick={() => handleLaunchDemoSite('red-fort')}
-                className="min-h-[44px] inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-[#C05E42] hover:bg-[#a84d34] text-white text-xs font-bold shadow-md transition-all cursor-pointer w-fit focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
-              >
-                <Sparkles className="w-4 h-4 text-[#D4AF37]" />
-                <span className={currentLang === 'hi' ? 'font-devanagari text-sm' : ''}>
-                  {currentLang === 'en' ? 'Try sample Red Fort image' : 'लाल किला नमूना आज़माएं'}
-                </span>
-              </button>
-            </div>
-
-            {/* Choose Demo Site Selector */}
-            <div className="flex flex-col gap-4">
-              <label className="text-xs font-bold text-[#1A1A1A] uppercase tracking-wider flex items-center justify-between">
-                <span>{currentLang === 'en' ? 'Choose Demo Site Selector' : 'डेमो स्मारक चयनकर्ता'}</span>
-                <span className="text-[11px] text-[#8C8276] font-normal">
-                  {heritageSites.length} {currentLang === 'en' ? 'Monuments Available' : 'स्मारक उपलब्ध'}
-                </span>
-              </label>
-
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                {heritageSites.slice(0, 10).map((site) => {
-                  const isSelected = selectedDemoSiteId === site.id;
-                  return (
-                    <button
-                      key={site.id}
-                      type="button"
-                      onClick={() => setSelectedDemoSiteId(site.id)}
-                      className={`min-h-[100px] p-3 rounded-2xl border text-left transition-all flex flex-col gap-2 relative overflow-hidden cursor-pointer focus-visible:ring-2 focus-visible:ring-[#C05E42] ${
-                        isSelected
-                          ? 'bg-[#F3EEE7] border-[#C05E42] shadow-xs ring-2 ring-[#C05E42]/20'
-                          : 'bg-white border-[#E8E2D9] hover:border-[#D4AF37]'
-                      }`}
-                    >
-                      <div className="h-16 w-full rounded-xl overflow-hidden bg-stone-200">
-                        <img
-                          src={site.imageUrl}
-                          alt={site.name}
-                          className="w-full h-full object-cover"
-                          crossOrigin="anonymous"
-                          referrerPolicy="no-referrer"
-                          onError={(e) => {
-                            (e.currentTarget as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect fill="%232D2926" width="100" height="100"/><text fill="%23FFFFFF" x="50" y="55" text-anchor="middle" font-size="10">Monument</text></svg>';
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <h4 className={`text-xs font-bold text-[#1A1A1A] font-serif-heritage truncate ${currentLang === 'hi' ? 'font-devanagari' : ''}`}>
-                          {currentLang === 'hi' ? site.hindiName : site.name}
-                        </h4>
-                        <span className="text-[10px] text-[#8C8276] block truncate">
-                          {site.builtYear}
-                        </span>
-                      </div>
-                      {isSelected && (
-                        <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-[#C05E42] text-white flex items-center justify-center shadow-xs">
-                          <Check className="w-2.5 h-2.5" />
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Action to Launch selected demo site result */}
-              <div className="p-4 rounded-2xl bg-[#F3EEE7] border border-[#E8E2D9] flex flex-col sm:flex-row items-center justify-between gap-4 mt-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 border border-[#E8E2D9] bg-stone-200">
-                    <img
-                      src={selectedSiteData.imageUrl}
-                      alt={selectedSiteData.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs font-bold text-[#1A1A1A] font-serif-heritage ${currentLang === 'hi' ? 'font-devanagari' : ''}`}>
-                        {currentLang === 'hi' ? selectedSiteData.hindiName : selectedSiteData.name}
-                      </span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">
-                        96% {currentLang === 'en' ? 'Simulated Confidence' : 'अनुमानित सटीकता'}
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-[#5C544E] line-clamp-1 mt-0.5">
-                      {selectedSiteData.architecturalStyle} • {selectedSiteData.builtYear}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  id="launch-selected-demo-site-btn"
-                  onClick={() => handleLaunchDemoSite(selectedDemoSiteId)}
-                  className="w-full sm:w-auto min-h-[44px] px-6 py-2.5 bg-[#2C4A3E] hover:bg-[#233a31] text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
-                >
-                  <Play className="w-4 h-4 text-[#D4AF37] fill-[#D4AF37]" />
-                  <span className={currentLang === 'hi' ? 'font-devanagari text-sm' : ''}>
-                    {currentLang === 'en' ? 'Open Demo Result Page' : 'डेमो परिणाम पृष्ठ खोलें'}
-                  </span>
-                  <ArrowRight className="w-3.5 h-3.5" />
-                </button>
               </div>
             </div>
           </div>
@@ -780,69 +658,6 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ currentLang, onLangCha
               )}
             </div>
           </div>
-
-          {/* 3. LANGUAGE PREFERENCES */}
-          <div 
-            id="language-preferences-card"
-            className="bg-[#FDFBF7] border border-[#E8E2D9] rounded-3xl p-6 sm:p-8 shadow-xs flex flex-col gap-5"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-[#C05E42] text-white flex items-center justify-center shadow-2xs">
-                <Globe className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="text-base font-bold text-[#1A1A1A] font-serif-heritage">
-                  {currentLang === 'en' ? 'Interface & Narration Language' : 'भाषा एवं विवरण प्राथमिकताएं'}
-                </h2>
-                <p className="text-xs text-[#5C544E]">
-                  {currentLang === 'en'
-                    ? 'Select your primary language for cultural narratives and audio tours'
-                    : 'सांस्कृतिक विवरण और ऑडियो गाइड के लिए भाषा का चयन करें'}
-                </p>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <button
-                type="button"
-                onClick={() => onLangChange('en')}
-                className={`p-4.5 rounded-2xl border text-left transition-all cursor-pointer ${
-                  currentLang === 'en'
-                    ? 'bg-[#F3EEE7] border-[#C05E42] shadow-xs'
-                    : 'bg-white border-[#E8E2D9] hover:border-[#D4AF37]'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="font-bold text-sm text-[#1A1A1A]">English</span>
-                  {currentLang === 'en' && <CheckCircle className="w-4 h-4 text-[#C05E42]" />}
-                </div>
-                <p className="text-xs text-[#5C544E] leading-relaxed">
-                  Standard English historical dataset, ASI citations, architectural terms, and audio narration.
-                </p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onLangChange('hi')}
-                className={`p-4.5 rounded-2xl border text-left transition-all cursor-pointer font-devanagari ${
-                  currentLang === 'hi'
-                    ? 'bg-[#F3EEE7] border-[#C05E42] shadow-xs'
-                    : 'bg-white border-[#E8E2D9] hover:border-[#D4AF37]'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="font-bold text-sm text-[#1A1A1A]">हिन्दी (Hindi)</span>
-                  {currentLang === 'hi' && <CheckCircle className="w-4 h-4 text-[#C05E42]" />}
-                </div>
-                <p className="text-xs text-[#5C544E] leading-relaxed">
-                  सत्यापित भारतीय ऐतिहासिक विवरण, एएसआई संदर्भ, सांस्कृतिक महत्व और हिन्दी स्वर में ऑडियो विवरण।
-                </p>
-              </button>
-            </div>
-          </div>
-
-          {/* 4. SECURITY AUDIT & TEST PLAN */}
-          <SecurityAndTestPlanSection currentLang={currentLang} />
         </div>
       )}
 

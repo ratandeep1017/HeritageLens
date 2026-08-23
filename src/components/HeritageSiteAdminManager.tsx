@@ -29,12 +29,22 @@ import {
   Info,
   X,
   AlertTriangle,
-  Undo2
+  Undo2,
+  ChevronDown,
+  ChevronUp,
+  BookOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HeritageSite } from '../types';
 import { HeritageDataStore } from '../services/heritageDataStore';
 import { handleMonumentImageError } from '../utils/imageFallback';
+import { fetchAuthenticPlaceImage } from '../services/geminiService';
+import { VisualImagePickerModal } from './VisualImagePickerModal';
+import { 
+  SAMPLE_HERITAGE_SITE_JSON_STRING, 
+  HERITAGE_SITE_SCHEMA_GUIDE, 
+  HERITAGE_SITE_SCHEMA_GUIDE_TEXT 
+} from '../data/sampleHeritageSiteTemplate';
 
 interface HeritageSiteAdminManagerProps {
   currentLang: 'en' | 'hi';
@@ -56,6 +66,7 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
   // Image URL validation & state
   const [imageTestStatus, setImageTestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [imageErrorMessage, setImageErrorMessage] = useState('');
+  const [isVisualPickerOpen, setIsVisualPickerOpen] = useState(false);
   
   // Toast notification
   const [feedbackToast, setFeedbackToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
@@ -67,12 +78,23 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
   const [isResetConfirmModalOpen, setIsResetConfirmModalOpen] = useState(false);
   const [isDeleteConfirmModalOpen, setIsDeleteConfirmModalOpen] = useState(false);
   const [sitePendingDelete, setSitePendingDelete] = useState<HeritageSite | null>(null);
+
+  const triggerToast = (toast: { message: string; type: 'success' | 'error' | 'info' }) => {
+    setFeedbackToast(toast);
+    setTimeout(() => setFeedbackToast(null), 3500);
+  };
   
   // Raw JSON editor
   const [importJsonText, setImportJsonText] = useState('');
   const [rawJsonEditText, setRawJsonEditText] = useState('');
   const [rawJsonError, setRawJsonError] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
+
+  // Add new site JSON modal state
+  const [newSiteJsonText, setNewSiteJsonText] = useState(SAMPLE_HERITAGE_SITE_JSON_STRING);
+  const [newSiteJsonError, setNewSiteJsonError] = useState<string | null>(null);
+  const [showSchemaGuide, setShowSchemaGuide] = useState(false);
+  const [isNewSiteLoading, setIsNewSiteLoading] = useState(false);
 
   // Load sites from data store
   const refreshSites = () => {
@@ -141,7 +163,6 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
     setImageErrorMessage('');
 
     const img = new Image();
-    img.crossOrigin = 'anonymous';
     img.referrerPolicy = 'no-referrer';
     
     img.onload = () => {
@@ -245,60 +266,96 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
     showToast(currentLang === 'en' ? 'Catalog restored to verified baseline records.' : 'सभी मूल स्मारक रिकॉर्ड पुनर्स्थापित किए गए।', 'info');
   };
 
-  // Create new blank or templated site
-  const handleCreateNewSite = async (templateId?: string) => {
-    let base: Partial<HeritageSite> = {
-      id: `monument-${Date.now().toString().slice(-4)}`,
-      name: 'New Heritage Monument',
-      hindiName: 'नया धरोहर स्मारक',
-      shortDescription: 'Concise architectural and historical summary of this monument.',
-      hindiShortDescription: 'इस ऐतिहासिक स्मारक का संक्षिप्त विवरण।',
-      fullHistory: 'Detailed chronological history, construction background, and patronage.',
-      hindiFullHistory: 'विस्तृत ऐतिहासिक विवरण एवं निर्माण पृष्ठभूमि।',
-      builtYear: '16th Century CE',
-      builtBy: 'Historic Dynasty / Builder',
-      architecturalStyle: 'Indo-Islamic / Mughal / Ancient Indian Architecture',
-      culturalSignificance: 'Cultural importance, ASI protection, and heritage designation.',
-      hindiCulturalSignificance: 'सांस्कृतिक महत्व और धरोहर मान्यता।',
-      interestingFacts: ['Notable historical event or architectural secret.'],
-      hindiInterestingFacts: ['उल्लेखनीय ऐतिहासिक घटना या स्थापत्य विशेषता।'],
-      folkloreOrLegends: ['Oral tradition or popular local legend associated with the site.'],
-      hindiFolkloreOrLegends: ['स्मारक से जुड़ी स्थानीय लोककथा।'],
-      travelTips: {
-        timings: '9:00 AM – 5:30 PM (All days)',
-        entryFee: '₹25 for Indians, ₹300 for Foreign Tourists',
-        nearestMetro: 'Central Secretariat (Yellow Line)',
-        bestTimeToVisit: 'October to March (Morning / Evening)',
-        rules: ['Photography permitted', 'Security bag inspection at entrance']
-      },
-      nearbyAttractions: [
-        { name: 'Nearby Garden / Historic Market', distance: '500 m', description: 'Popular cultural spot' }
-      ],
-      imageUrl: 'https://images.unsplash.com/photo-1592635196078-9fdc757f27f4?auto=format&fit=crop&w=1200&q=80',
-      imageAlt: 'Heritage monument facade and architectural structure',
-      sourceNote: 'Archaeological Survey of India (ASI) Records',
-      tags: ['Heritage', 'Historic Site', 'Monument']
-    };
+  // Modal & JSON helper actions
+  const handleOpenAddSiteModal = () => {
+    setNewSiteJsonText(SAMPLE_HERITAGE_SITE_JSON_STRING);
+    setNewSiteJsonError(null);
+    setShowSchemaGuide(false);
+    setIsNewSiteModalOpen(true);
+  };
 
-    if (templateId) {
-      const template = sites.find(s => s.id === templateId);
-      if (template) {
-        base = {
-          ...JSON.parse(JSON.stringify(template)),
-          id: `${template.id}-copy-${Date.now().toString().slice(-4)}`,
-          name: `${template.name} (Copy)`,
-          hindiName: `${template.hindiName} (प्रतिलिपि)`
-        };
-      }
+  const handleCopyJsonTemplate = () => {
+    navigator.clipboard.writeText(SAMPLE_HERITAGE_SITE_JSON_STRING);
+    showToast(currentLang === 'en' ? 'Copied sample JSON template to clipboard!' : 'नमूना JSON टेम्पलेट क्लिपबोर्ड पर कॉपी किया गया!', 'info');
+  };
+
+  const handleCopySchemaGuidelines = () => {
+    navigator.clipboard.writeText(HERITAGE_SITE_SCHEMA_GUIDE_TEXT);
+    showToast(currentLang === 'en' ? 'Copied schema guidelines to clipboard!' : 'स्कीमा दिशा-निर्देश कॉपी किए गए!', 'info');
+  };
+
+  const handleLoadSampleTemplate = () => {
+    setNewSiteJsonText(SAMPLE_HERITAGE_SITE_JSON_STRING);
+    setNewSiteJsonError(null);
+    showToast(currentLang === 'en' ? 'Loaded demo JSON template!' : 'डेमो JSON टेम्पलेट लोड किया गया!', 'info');
+  };
+
+  const handleCloneIntoNewSiteJson = (siteId: string) => {
+    const template = sites.find(s => s.id === siteId);
+    if (template) {
+      const cloned = {
+        ...JSON.parse(JSON.stringify(template)),
+        id: `${template.id}-copy-${Date.now().toString().slice(-4)}`,
+        name: `${template.name} (Copy)`,
+        hindiName: `${template.hindiName || template.name} (प्रतिलिपि)`
+      };
+      setNewSiteJsonText(JSON.stringify(cloned, null, 2));
+      setNewSiteJsonError(null);
+      setIsNewSiteModalOpen(true);
+      showToast(currentLang === 'en' ? `Cloned "${template.name}" into editor!` : `"${template.name}" का डेटा लोड किया गया!`, 'info');
     }
+  };
 
-    const { site } = await HeritageDataStore.addNewSite(base as HeritageSite);
-    refreshSites();
-    setSelectedSiteId(site.id);
-    setEditingSite(site);
-    setRawJsonEditText(JSON.stringify(site, null, 2));
-    setIsNewSiteModalOpen(false);
-    showToast(currentLang === 'en' ? `Created new monument "${site.name}"!` : `नया स्थल "${site.hindiName}" बनाया गया!`, 'success');
+  // Add new site from JSON
+  const handleCreateSiteFromJson = async () => {
+    try {
+      setNewSiteJsonError(null);
+      if (!newSiteJsonText.trim()) {
+        setNewSiteJsonError(currentLang === 'en' ? 'JSON text cannot be empty.' : 'JSON टेक्स्ट खाली नहीं हो सकता।');
+        return;
+      }
+
+      let parsed: any;
+      try {
+        parsed = JSON.parse(newSiteJsonText);
+      } catch (err: any) {
+        setNewSiteJsonError(currentLang === 'en' ? `Invalid JSON syntax: ${err.message}` : `अमान्य JSON प्रारूप: ${err.message}`);
+        return;
+      }
+
+      const siteObject = Array.isArray(parsed) ? parsed[0] : parsed;
+
+      if (!siteObject || typeof siteObject !== 'object') {
+        setNewSiteJsonError(currentLang === 'en' ? 'JSON must be a valid site object.' : 'JSON एक वैध स्मारक ऑब्जेक्ट होना चाहिए।');
+        return;
+      }
+
+      if (!siteObject.id || !siteObject.name) {
+        setNewSiteJsonError(currentLang === 'en' ? "JSON must include 'id' and 'name' fields." : "JSON में 'id' और 'name' फ़ील्ड होना आवश्यक है।");
+        return;
+      }
+
+      setIsNewSiteLoading(true);
+      const res = await HeritageDataStore.addNewSite(siteObject as HeritageSite);
+      setIsNewSiteLoading(false);
+
+      if (res.success) {
+        refreshSites();
+        setSelectedSiteId(res.site.id);
+        setEditingSite(res.site);
+        setRawJsonEditText(JSON.stringify(res.site, null, 2));
+        setIsNewSiteModalOpen(false);
+        showToast(
+          currentLang === 'en'
+            ? `Successfully added "${res.site.name}"!`
+            : `"${res.site.hindiName || res.site.name}" सफलतापूर्वक जोड़ा गया!`,
+          'success'
+        );
+      }
+    } catch (err: any) {
+      setIsNewSiteLoading(false);
+      setNewSiteJsonError(err?.message || 'Failed to create site');
+    }
   };
 
   // Request Delete Site
@@ -336,9 +393,9 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
   };
 
   // Import JSON
-  const handleImportJson = () => {
+  const handleImportJson = async () => {
     if (!importJsonText.trim()) return;
-    const res = HeritageDataStore.importFromJson(importJsonText);
+    const res = await HeritageDataStore.importFromJson(importJsonText);
     if (res.success) {
       refreshSites();
       setIsImportModalOpen(false);
@@ -350,17 +407,24 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
   };
 
   // Apply Raw JSON editor changes
-  const handleApplyRawJson = () => {
+  const handleApplyRawJson = async () => {
     try {
       setRawJsonError(null);
       const parsed = JSON.parse(rawJsonEditText);
       if (!parsed.id || !parsed.name) {
         throw new Error("JSON must include 'id' and 'name' properties.");
       }
+
+      // If the ID has changed, delete the old site record to avoid duplicates/lingering templates
+      if (editingSite && editingSite.id !== parsed.id) {
+        await HeritageDataStore.deleteSite(editingSite.id);
+      }
+
       setEditingSite(parsed);
-      HeritageDataStore.saveSite(parsed);
+      await HeritageDataStore.saveSite(parsed);
       setIsDirty(false);
       refreshSites();
+      setSelectedSiteId(parsed.id);
       showToast(currentLang === 'en' ? 'Applied raw JSON changes!' : 'रॉ JSON बदलाव लागू किए गए!', 'success');
     } catch (err: any) {
       setRawJsonError(err.message || 'Invalid JSON');
@@ -401,9 +465,7 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
       </AnimatePresence>
 
       {/* Header Banner & Global Actions */}
-      <div className="p-6 sm:p-8 rounded-3xl bg-linear-to-r from-[#2D2926] via-[#3D3530] to-[#1F1C1A] text-white border border-[#4A423C] shadow-xl relative overflow-hidden">
-        <div className="absolute right-0 top-0 w-80 h-full bg-radial from-[#D4AF37]/15 to-transparent pointer-events-none" />
-        
+      <div className="p-6 sm:p-8 rounded-3xl bg-[#23201D] text-white border border-[#3D3631] shadow-xl relative overflow-hidden">
         <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-5">
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37]/40 text-[#D4AF37] text-xs font-bold tracking-wider mb-2 uppercase">
@@ -426,7 +488,7 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
             <button
               type="button"
               id="admin-add-monument-btn"
-              onClick={() => setIsNewSiteModalOpen(true)}
+              onClick={handleOpenAddSiteModal}
               className="min-h-[42px] px-4 py-2 rounded-xl bg-[#C05E42] hover:bg-[#a84d34] text-white text-xs font-bold transition-all shadow-md flex items-center gap-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
             >
               <Plus className="w-4 h-4" />
@@ -521,7 +583,6 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
                         src={site.imageUrl}
                         alt={site.name}
                         className="w-full h-full object-cover"
-                        crossOrigin="anonymous"
                         referrerPolicy="no-referrer"
                         onError={(e) => handleMonumentImageError(e, site.id, site.name, site.imageUrl)}
                       />
@@ -604,9 +665,9 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
 
                   <button
                     type="button"
-                    onClick={() => handleCreateNewSite(editingSite.id)}
+                    onClick={() => handleCloneIntoNewSiteJson(editingSite.id)}
                     className="px-3 py-2 rounded-xl bg-[#FDFBF7] hover:bg-[#F3EEE7] border border-[#E8E2D9] text-[#1A1A1A] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                    title="Clone as new monument template"
+                    title="Clone into JSON editor"
                   >
                     <Copy className="w-3.5 h-3.5 text-[#8C827A]" />
                     <span>{currentLang === 'en' ? 'Clone' : 'प्रतिलिपि'}</span>
@@ -697,7 +758,7 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
                           <label className="block text-xs font-bold text-[#1A1A1A] mb-1">
                             {currentLang === 'en' ? 'Primary Image URL (Exact URL preserved):' : 'मुख्य चित्र URL (सटीक लिंक):'}
                           </label>
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                             <input
                               type="text"
                               value={editingSite.imageUrl}
@@ -705,14 +766,52 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
                               placeholder="https://images.unsplash.com/photo-..."
                               className="w-full px-3 py-2 rounded-xl bg-white border border-[#E8E2D9] text-xs font-mono text-[#1A1A1A] focus:outline-none focus:border-[#C05E42]"
                             />
-                            <button
-                              type="button"
-                              onClick={() => handleTestImageUrl(editingSite.imageUrl)}
-                              className="px-3 py-2 rounded-xl bg-[#2D2926] hover:bg-[#403A36] text-white text-xs font-bold shrink-0 transition-colors cursor-pointer"
-                              title="Test if image loads in browser"
-                            >
-                              {currentLang === 'en' ? 'Test URL' : 'जांचें'}
-                            </button>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => setIsVisualPickerOpen(true)}
+                                className="px-3 py-2 rounded-xl bg-[#C05E42] hover:bg-[#A84F36] text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs"
+                                title="Search & pick authentic photo visually"
+                              >
+                                <ImageIcon className="w-3.5 h-3.5 text-[#D4AF37]" />
+                                <span>{currentLang === 'en' ? 'Visual Picker' : 'चित्र खोजें'}</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  triggerToast({
+                                    type: 'info',
+                                    message: currentLang === 'en' ? 'Fetching authentic photo from Wikimedia...' : 'विकीमीडिया से वास्तविक चित्र खोजा जा रहा है...'
+                                  });
+                                  const img = await fetchAuthenticPlaceImage(
+                                    editingSite.name,
+                                    editingSite.tags || [],
+                                    editingSite.shortDescription || editingSite.fullHistory || ''
+                                  );
+                                  handleFieldChange('imageUrl', img);
+                                  handleTestImageUrl(img);
+                                  triggerToast({
+                                    type: 'success',
+                                    message: currentLang === 'en' ? `Updated photo for "${editingSite.name}"!` : `"${editingSite.name}" का चित्र अपडेट हुआ!`
+                                  });
+                                }}
+                                className="px-3 py-2 rounded-xl bg-[#2C4A3E] hover:bg-[#223930] text-[#D4AF37] hover:text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                                title="Fetch real photo from Wikimedia / Wikipedia"
+                              >
+                                <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+                                <span>{currentLang === 'en' ? 'Auto Fetch' : 'स्वतः खोजें'}</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleTestImageUrl(editingSite.imageUrl)}
+                                className="px-3 py-2 rounded-xl bg-[#2D2926] hover:bg-[#403A36] text-white text-xs font-bold transition-colors cursor-pointer"
+                                title="Test if image loads in browser"
+                              >
+                                {currentLang === 'en' ? 'Test URL' : 'जांचें'}
+                              </button>
+                            </div>
                           </div>
                         </div>
 
@@ -763,18 +862,35 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
 
                       {/* Live Image Preview Card */}
                       <div className="md:col-span-5 flex flex-col gap-2">
-                        <span className="text-xs font-bold text-[#5C544E]">
-                          {currentLang === 'en' ? 'Live Card Preview:' : 'लाइव कार्ड प्रीव्यू:'}
-                        </span>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-[#5C544E]">
+                            {currentLang === 'en' ? 'Live Card Preview:' : 'लाइव कार्ड प्रीव्यू:'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setIsVisualPickerOpen(true)}
+                            className="text-[11px] text-[#C05E42] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                          >
+                            <ImageIcon className="w-3 h-3" />
+                            <span>{currentLang === 'en' ? 'Change Photo' : 'फ़ोटो बदलें'}</span>
+                          </button>
+                        </div>
                         <div className="relative aspect-4/3 rounded-2xl overflow-hidden bg-neutral-900 border-2 border-[#D4AF37] shadow-md group">
                           <img
                             src={editingSite.imageUrl}
                             alt={editingSite.imageAlt || editingSite.name}
                             className="w-full h-full object-cover"
-                            crossOrigin="anonymous"
                             referrerPolicy="no-referrer"
                             onError={(e) => handleMonumentImageError(e, editingSite.id, editingSite.name, editingSite.imageUrl)}
                           />
+                          <button
+                            type="button"
+                            onClick={() => setIsVisualPickerOpen(true)}
+                            className="absolute top-2.5 right-2.5 px-3 py-1.5 rounded-xl bg-black/70 hover:bg-black/90 text-white backdrop-blur-md text-xs font-bold border border-white/20 transition-all flex items-center gap-1.5 cursor-pointer shadow-lg group-hover:scale-105"
+                          >
+                            <ImageIcon className="w-3.5 h-3.5 text-[#D4AF37]" />
+                            <span>{currentLang === 'en' ? 'Visual Picker' : 'चित्र खोजें'}</span>
+                          </button>
                           <div className="absolute inset-0 bg-linear-to-t from-black/80 via-transparent to-transparent flex flex-col justify-end p-3 pointer-events-none">
                             <span className="text-[10px] text-[#D4AF37] font-bold uppercase tracking-wider">
                               {editingSite.architecturalStyle || 'Heritage Site'}
@@ -787,6 +903,35 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
                       </div>
                     </div>
                   </div>
+
+                  {/* VISUAL IMAGE SEARCH & PICKER MODAL */}
+                  <VisualImagePickerModal
+                    isOpen={isVisualPickerOpen}
+                    onClose={() => setIsVisualPickerOpen(false)}
+                    onSelectImage={async (newUrl, newAlt) => {
+                      handleFieldChange('imageUrl', newUrl);
+                      if (newAlt) handleFieldChange('imageAlt', newAlt);
+                      handleTestImageUrl(newUrl);
+                      if (editingSite) {
+                        const updated = {
+                          ...editingSite,
+                          imageUrl: newUrl,
+                          imageAlt: newAlt || editingSite.imageAlt
+                        };
+                        await HeritageDataStore.saveSite(updated);
+                        setEditingSite(updated);
+                        setIsDirty(false);
+                      }
+                      triggerToast({
+                        type: 'success',
+                        message: currentLang === 'en' ? `Saved photo for "${editingSite.name}"!` : `"${editingSite.name}" का चित्र सहेजा गया!`
+                      });
+                    }}
+                    currentImageUrl={editingSite.imageUrl}
+                    placeName={editingSite.name}
+                    categoryTags={editingSite.tags}
+                    currentLang={currentLang}
+                  />
 
                   {/* Core Identity Fields */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1511,75 +1656,166 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
         )}
       </AnimatePresence>
 
-      {/* Modal: Add New Monument */}
+      {/* Modal: Add New Heritage Monument (JSON) */}
       <AnimatePresence>
         {isNewSiteModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-xs">
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg rounded-3xl bg-white p-6 border border-[#E8E2D9] shadow-2xl flex flex-col gap-5"
+              className="w-full max-w-3xl rounded-3xl bg-white border border-[#E8E2D9] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Plus className="w-5 h-5 text-[#C05E42]" />
-                  <h3 className="text-lg font-bold text-[#1A1A1A]">
-                    {currentLang === 'en' ? 'Add New Heritage Monument' : 'नया धरोहर स्मारक जोड़ें'}
-                  </h3>
+              {/* Fixed Header */}
+              <div className="flex items-center justify-between px-6 py-4.5 border-b border-[#E8E2D9] bg-[#FDFBF7] shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-xl bg-[#C05E42]/10 text-[#C05E42] flex items-center justify-center">
+                    <Plus className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-bold text-[#1A1A1A]">
+                      {currentLang === 'en' ? 'Add New Heritage Monument (JSON)' : 'नया धरोहर स्मारक जोड़ें (JSON)'}
+                    </h3>
+                    <p className="text-xs text-[#5C544E]">
+                      {currentLang === 'en' 
+                        ? 'Paste the complete structured JSON for the new heritage site.' 
+                        : 'नए स्मारक के संपूर्ण JSON विवरण को पेस्ट करें।'}
+                    </p>
+                  </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setIsNewSiteModalOpen(false)}
-                  className="p-1 rounded-full text-neutral-400 hover:text-neutral-700"
+                  className="p-1.5 rounded-full text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <p className="text-xs text-[#5C544E] leading-relaxed">
-                {currentLang === 'en'
-                  ? 'Choose whether to create a fresh monument entry or base it on an existing temple/fort/minaret template.'
-                  : 'नया खाली स्मारक प्रविष्टि बनाएं अथवा किसी मौजूदा स्मारक के टेम्पलेट पर आधारित करें।'}
-              </p>
+              {/* Scrollable Content Body */}
+              <div className="p-6 overflow-y-auto flex flex-col gap-4.5 custom-scrollbar flex-1">
+                {/* Action Toolbar for JSON Template & Guidelines */}
+                <div className="flex flex-wrap items-center justify-between gap-2.5 bg-[#F8F5F0] p-3 rounded-2xl border border-[#E8E2D9]">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleLoadSampleTemplate}
+                      className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-[#FAF8F5] border border-[#E8E2D9] text-[#1A1A1A] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      title="Load the standard demo template into editor"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
+                      <span>{currentLang === 'en' ? 'Load Demo Template' : 'डेमो टेम्पलेट लोड करें'}</span>
+                    </button>
 
-              <div className="flex flex-col gap-2.5">
-                <button
-                  type="button"
-                  onClick={() => handleCreateNewSite()}
-                  className="p-3.5 rounded-2xl bg-[#FAF8F5] hover:bg-[#F3EEE7] border border-[#E8E2D9] text-left text-xs font-bold text-[#1A1A1A] flex items-center justify-between group cursor-pointer"
-                >
-                  <div>
-                    <div className="font-bold text-[#C05E42]">
-                      {currentLang === 'en' ? '✨ Blank Heritage Template' : '✨ नया रिक्त टेम्पलेट'}
-                    </div>
-                    <div className="text-[11px] text-[#8C827A] font-normal mt-0.5">
-                      {currentLang === 'en' ? 'Pre-filled with all required ASI fields, facts structure, and logistics' : 'सभी आवश्यक क्षेत्रों के साथ खाली ढांचा'}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={handleCopyJsonTemplate}
+                      className="px-3.5 py-1.5 rounded-xl bg-white hover:bg-[#FAF8F5] border border-[#E8E2D9] text-[#5C544E] hover:text-[#1A1A1A] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                      title="Copy sample JSON structure to clipboard"
+                    >
+                      <Copy className="w-3.5 h-3.5 text-[#8C827A]" />
+                      <span>{currentLang === 'en' ? 'Copy Template JSON' : 'JSON टेम्पलेट कॉपी करें'}</span>
+                    </button>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-[#8C827A] group-hover:text-[#C05E42]" />
-                </button>
 
-                <div className="text-[11px] font-bold text-[#8C827A] uppercase tracking-wider mt-2">
-                  {currentLang === 'en' ? 'Or Clone from Existing Monument:' : 'या मौजूदा स्मारक से क्लोन करें:'}
+                  <button
+                    type="button"
+                    onClick={() => setShowSchemaGuide(!showSchemaGuide)}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                      showSchemaGuide 
+                        ? 'bg-[#2C4A3E] text-white border-[#2C4A3E]' 
+                        : 'bg-white text-[#2C4A3E] border-[#2C4A3E]/30 hover:bg-[#2C4A3E]/10'
+                    }`}
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    <span>{currentLang === 'en' ? 'Field Guidelines' : 'फ़ील्ड नियम'}</span>
+                    {showSchemaGuide ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                  </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-                  {sites.slice(0, 8).map((site) => (
-                    <button
-                      key={site.id}
-                      type="button"
-                      onClick={() => handleCreateNewSite(site.id)}
-                      className="p-2.5 rounded-xl bg-white hover:bg-[#FAF8F5] border border-[#E8E2D9] text-left text-xs text-[#1A1A1A] flex items-center gap-2 truncate cursor-pointer"
-                    >
-                      <Building2 className="w-3.5 h-3.5 text-[#D4AF37] shrink-0" />
-                      <span className="truncate">{site.name}</span>
-                    </button>
-                  ))}
+                {/* Schema Format Guidelines Accordion */}
+                {showSchemaGuide && (
+                  <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E8E2D9] flex flex-col gap-3 text-xs text-[#5C544E] animate-in fade-in duration-200">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-[#1A1A1A] uppercase tracking-wider text-[11px]">
+                        {currentLang === 'en' ? '📋 Schema Format Guidelines' : '📋 स्कीमा प्रारूप दिशा-निर्देश'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleCopySchemaGuidelines}
+                        className="text-[11px] text-[#C05E42] hover:underline font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>{currentLang === 'en' ? 'Copy Guidelines' : 'नियम कॉपी करें'}</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-[11px] font-mono leading-relaxed bg-white p-3.5 rounded-xl border border-[#E8E2D9] max-h-52 overflow-y-auto">
+                      {HERITAGE_SITE_SCHEMA_GUIDE.map((item, idx) => (
+                        <div key={idx} className="flex flex-col gap-0.5 pb-1.5 border-b border-neutral-100 last:border-0">
+                          <span className="font-bold text-[#2C4A3E]">{item.field}:</span>
+                          <span className="text-[#5C544E] font-sans">{item.tip}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Clone from existing monument selector (optional helper) */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs bg-[#FAF8F5] p-3 rounded-2xl border border-[#E8E2D9]">
+                  <span className="text-[#8C827A] font-medium">
+                    {currentLang === 'en' ? 'Or populate with existing monument as base:' : 'या किसी मौजूदा स्मारक का डेटा लोड करें:'}
+                  </span>
+                  <select
+                    defaultValue=""
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        handleCloneIntoNewSiteJson(e.target.value);
+                        e.target.value = '';
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-white border border-[#E8E2D9] text-xs text-[#1A1A1A] font-medium focus:outline-none focus:border-[#C05E42] cursor-pointer"
+                  >
+                    <option value="" disabled>
+                      {currentLang === 'en' ? '-- Select monument to load --' : '-- स्मारक चुनें --'}
+                    </option>
+                    {sites.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.id})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Error Message */}
+                {newSiteJsonError && (
+                  <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-bold flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                    <span>{newSiteJsonError}</span>
+                  </div>
+                )}
+
+                {/* Textarea Code Editor */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-bold text-[#1A1A1A]">
+                    {currentLang === 'en' ? 'Monument JSON Definition:' : 'स्मारक JSON परिभाषा:'}
+                  </label>
+                  <textarea
+                    rows={12}
+                    value={newSiteJsonText}
+                    onChange={(e) => {
+                      setNewSiteJsonText(e.target.value);
+                      if (newSiteJsonError) setNewSiteJsonError(null);
+                    }}
+                    placeholder={SAMPLE_HERITAGE_SITE_JSON_STRING}
+                    className="w-full p-4 rounded-2xl bg-neutral-900 text-emerald-400 font-mono text-xs leading-relaxed focus:outline-none border border-neutral-800"
+                    spellCheck={false}
+                  />
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2 pt-3 border-t border-[#E8E2D9]">
+              {/* Fixed Modal Footer Actions */}
+              <div className="flex items-center justify-between gap-3 px-6 py-4 border-t border-[#E8E2D9] bg-[#FDFBF7] shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsNewSiteModalOpen(false)}
@@ -1587,6 +1823,22 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
                 >
                   {currentLang === 'en' ? 'Cancel' : 'रद्द करें'}
                 </button>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleCreateSiteFromJson}
+                    disabled={isNewSiteLoading}
+                    className="px-5 py-2.5 rounded-xl bg-[#2C4A3E] hover:bg-[#223930] text-white text-xs font-bold shadow-md cursor-pointer flex items-center gap-2 disabled:opacity-50"
+                  >
+                    <Plus className="w-4 h-4 text-[#D4AF37]" />
+                    <span>
+                      {isNewSiteLoading 
+                        ? (currentLang === 'en' ? 'Saving...' : 'सहेजा जा रहा है...') 
+                        : (currentLang === 'en' ? 'Add Monument to Catalog' : 'स्मारक सूची में जोड़ें')}
+                    </span>
+                  </button>
+                </div>
               </div>
             </motion.div>
           </div>
@@ -1621,15 +1873,15 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
 
               <p className="text-xs text-[#5C544E]">
                 {currentLang === 'en'
-                  ? 'Paste an array of HeritageSite JSON objects to update or replace the current catalog.'
-                  : 'मौजूदा सूची को अद्यतन करने के लिए हेरिटेज साइट्स JSON ऐरे पेस्ट करें।'}
+                  ? 'Paste a single heritage site JSON object (or an array of sites) to add or update records in the catalog.'
+                  : 'सूची में स्मारकों को जोड़ने या अपडेट करने के लिए एक एकल धरोहर स्थल JSON ऑब्जेक्ट (या स्थलों की सूची) पेस्ट करें।'}
               </p>
 
               <textarea
                 rows={10}
                 value={importJsonText}
                 onChange={(e) => setImportJsonText(e.target.value)}
-                placeholder="[ { &quot;id&quot;: &quot;red-fort&quot;, &quot;name&quot;: &quot;Red Fort&quot;, ... } ]"
+                placeholder="{ &quot;id&quot;: &quot;salimgarh-fort&quot;, &quot;name&quot;: &quot;Salimgarh Fort&quot;, ... }"
                 className="w-full p-3 rounded-xl bg-neutral-900 text-emerald-400 font-mono text-xs leading-relaxed focus:outline-none"
               />
 

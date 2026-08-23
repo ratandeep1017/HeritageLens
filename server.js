@@ -235,7 +235,90 @@ app.post('/api/sites/reset', (req, res) => {
   }
 });
 
-// 8. POST verify admin passcode
+// 8. GET live web image search for any monument / place
+app.get('/api/image-search', async (req, res) => {
+  try {
+    const query = (req.query.q || '').trim();
+    if (!query) {
+      return res.status(400).json({ success: false, error: 'Query parameter q is required' });
+    }
+
+    const results = [];
+
+    // 1. Live Web Image Search (DuckDuckGo Image Engine)
+    try {
+      const tokenRes = await fetch(`https://duckduckgo.com/?q=${encodeURIComponent(query)}&iax=images&ia=images`);
+      const tokenHtml = await tokenRes.text();
+      const vqdMatch = tokenHtml.match(/vqd=([\d-]+)/);
+      const vqd = vqdMatch ? vqdMatch[1] : null;
+
+      if (vqd) {
+        const imgRes = await fetch(`https://duckduckgo.com/i.js?l=us-en&o=json&q=${encodeURIComponent(query)}&vqd=${vqd}&f=,,,`, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Referer': 'https://duckduckgo.com/'
+          }
+        });
+        if (imgRes.ok) {
+          const data = await imgRes.json();
+          if (Array.isArray(data.results)) {
+            for (let i = 0; i < Math.min(data.results.length, 12); i++) {
+              const r = data.results[i];
+              if (r.image && r.image.startsWith('http')) {
+                results.push({
+                  id: `web-${i}-${Date.now()}`,
+                  title: r.title || query,
+                  url: r.image,
+                  thumbUrl: r.thumbnail || r.image,
+                  source: 'Web Search'
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[Image Search] Web search error:', err.message);
+    }
+
+    // 2. Wikipedia Search API as supplementary source
+    try {
+      const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=6&prop=pageimages&piprop=original|thumbnail&pithumbsize=800`;
+      const wikiRes = await fetch(wikiUrl, {
+        headers: { 'User-Agent': 'HeritageLens/1.0 (https://heritagelens.ai; contact@heritagelens.ai)' }
+      });
+      if (wikiRes.ok) {
+        const data = await wikiRes.json();
+        const pages = data.query?.pages || {};
+        for (const p of Object.values(pages)) {
+          const img = p.original?.source || p.thumbnail?.source;
+          if (img && typeof img === 'string' && img.startsWith('http') && !results.some(r => r.url === img)) {
+            results.push({
+              id: `wiki-${p.pageid || p.title}`,
+              title: p.title || query,
+              url: img.replace(/\/\d+px-/, '/1600px-'),
+              thumbUrl: p.thumbnail?.source || img,
+              source: 'Wikipedia'
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('[Image Search] Wikipedia search error:', err.message);
+    }
+
+    res.json({
+      success: true,
+      query,
+      count: results.length,
+      data: results
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: 'Failed to execute image search' });
+  }
+});
+
+// 9. POST verify admin passcode
 app.post('/api/admin/verify', (req, res) => {
   const { passcode } = req.body;
   const validPasscodes = ['admin', 'heritage2026', 'heritagelens'];

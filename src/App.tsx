@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { Agentation } from 'agentation';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { HomePage } from './pages/HomePage';
@@ -55,6 +56,41 @@ export default function App() {
 
         {/* Cultural Footer */}
         <Footer currentLang={currentLang} onLangChange={handleLangChange} />
+
+        {/* Agentation Visual Feedback (Development Mode Only) */}
+        {import.meta.env.DEV && (
+          <Agentation
+            endpoint="http://localhost:4747"
+            copyToClipboard={true}
+            onSessionCreated={(sessionId) => {
+              console.log('[Agentation] Session created:', sessionId);
+            }}
+            onCopy={(markdown) => {
+              console.log('[Agentation] Copied annotations to clipboard:\n', markdown);
+              // Fallback clipboard write to handle browser permission restrictions
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(markdown).catch(() => {
+                  const textArea = document.createElement('textarea');
+                  textArea.value = markdown;
+                  textArea.style.position = 'fixed';
+                  textArea.style.opacity = '0';
+                  document.body.appendChild(textArea);
+                  textArea.focus();
+                  textArea.select();
+                  try {
+                    document.execCommand('copy');
+                  } catch (err) {
+                    console.error('[Agentation] Fallback copy failed:', err);
+                  }
+                  document.body.removeChild(textArea);
+                });
+              }
+            }}
+            onSubmit={(output, annotations) => {
+              console.log('[Agentation] Submitted annotations for agent:\n', output, annotations);
+            }}
+          />
+        )}
       </div>
     </BrowserRouter>
   );

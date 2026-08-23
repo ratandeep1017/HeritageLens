@@ -459,7 +459,6 @@ export const ResultPage: React.FC<ResultPageProps> = ({ currentLang }) => {
                 src={result.uploadedImageUrl || site.imageUrl}
                 alt={site.name}
                 className="w-full h-full object-cover"
-                crossOrigin="anonymous"
                 referrerPolicy="no-referrer"
                 onError={(e) => handleMonumentImageError(e, site.id, currentLang === 'hi' ? site.hindiName : site.name, site.imageUrl)}
               />

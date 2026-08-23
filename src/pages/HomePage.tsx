@@ -20,16 +20,28 @@ import {
   Layers,
   Sparkle,
   Cpu,
-  Play
+  Play,
+  Search,
+  Image as ImageIcon,
+  AlertCircle,
+  Eye,
+  CheckCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HeritageDataStore, useHeritageSites } from '../services/heritageDataStore';
 import { HeritageSite } from '../types';
 import { UPCOMING_REGIONS } from '../data/upcomingRegions';
 import { StorageService } from '../services/storage';
-import { identifyHeritageImage, getStoredGeminiKey, createDemoRecognitionResult } from '../services/geminiService';
+import { 
+  identifyHeritageImage, 
+  getStoredGeminiKey, 
+  createDemoRecognitionResult,
+  generateHeritageSiteFromSearch,
+  GenerateSiteResponse
+} from '../services/geminiService';
 import { ImageInput } from '../components/ImageInput';
 import { ApiKeyPromptModal } from '../components/ApiKeyPromptModal';
+import { VisualImagePickerModal } from '../components/VisualImagePickerModal';
 import { handleMonumentImageError } from '../utils/imageFallback';
 
 interface HomePageProps {
@@ -47,6 +59,70 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
   const [suggestionSubmitted, setSuggestionSubmitted] = useState(false);
   const [suggestedMonument, setSuggestedMonument] = useState('');
   const [showKeyModal, setShowKeyModal] = useState(false);
+
+  // AI Monument Discovery & Search State
+  const [aiSearchQuery, setAiSearchQuery] = useState('');
+  const [isAiSearching, setIsAiSearching] = useState(false);
+  const [aiSearchStep, setAiSearchStep] = useState('');
+  const [aiSearchResult, setAiSearchResult] = useState<GenerateSiteResponse | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('heritagelens_last_ai_search_result');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isVisualPickerOpen, setIsVisualPickerOpen] = useState(false);
+  const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
+
+  const triggerToast = (msg: string) => {
+    setFeedbackToast(msg);
+    setTimeout(() => setFeedbackToast(null), 3500);
+  };
+
+  const handleAiMonumentSearch = async (queryToSearch?: string) => {
+    const targetQuery = (queryToSearch || aiSearchQuery).trim();
+    if (!targetQuery) return;
+
+    const key = StorageService.getApiKey() || '';
+    setIsAiSearching(true);
+    setAiSearchResult(null);
+    setAiSearchStep(currentLang === 'en' ? 'Consulting Gemini AI...' : 'गूगल जेमिनी एआई से परामर्श हो रहा है...');
+
+    try {
+      const res = await generateHeritageSiteFromSearch(targetQuery, key, currentLang);
+      setAiSearchResult(res);
+      try {
+        sessionStorage.setItem('heritagelens_last_ai_search_result', JSON.stringify(res));
+      } catch {}
+
+      if (res.success && res.isRealHeritageSite && res.site) {
+        triggerToast(
+          currentLang === 'en'
+            ? `✨ Successfully discovered and added "${res.site.name}" to catalog!`
+            : `✨ "${res.site.hindiName || res.site.name}" सफलतापूर्वक कैटलॉग में जोड़ा गया!`
+        );
+      } else if (res.rejectionReason) {
+        triggerToast(
+          currentLang === 'en'
+            ? 'Place not verified as a heritage site.'
+            : 'स्थल एक धरोहर स्मारक के रूप में प्रमाणित नहीं हुआ।'
+        );
+      }
+    } catch (err: any) {
+      const errObj = {
+        success: false,
+        isRealHeritageSite: false,
+        error: err?.message || 'AI Search encountered an error',
+      };
+      setAiSearchResult(errObj);
+      try {
+        sessionStorage.setItem('heritagelens_last_ai_search_result', JSON.stringify(errObj));
+      } catch {}
+    } finally {
+      setIsAiSearching(false);
+    }
+  };
 
   const isDemoMode = StorageService.isDemoMode();
   const hasApiKey = Boolean(StorageService.getApiKey()) && !isDemoMode;
@@ -335,13 +411,6 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
                 {currentLang === 'en' ? 'Capture or Upload Monument' : 'स्मारक की तस्वीर लें या अपलोड करें'}
               </h3>
             </div>
-
-            <div className="flex items-center gap-2">
-              <span className={`w-2.5 h-2.5 rounded-full ${hasApiKey ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-              <span className="text-xs text-[#5C544E] font-medium">
-                {hasApiKey ? (currentLang === 'en' ? 'Gemini 2.5 Active' : 'जेमिनी 2.5 सक्रिय') : (currentLang === 'en' ? 'Demo Mode Ready' : 'डेमो मोड तैयार')}
-              </span>
-            </div>
           </div>
 
           <div className="pt-6">
@@ -352,46 +421,6 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
               isAnalyzing={isAnalyzing}
               currentLang={currentLang}
             />
-
-            {/* Quick Demo Test Actions for Judges and Reviewers */}
-            <div className="mt-5 p-4 rounded-2xl bg-[#F3EEE7] border border-[#E8E2D9] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-xs text-[#1A1A1A]">
-                <Cpu className="w-4 h-4 text-[#C05E42] shrink-0" />
-                <div>
-                  <span className="font-bold">
-                    {currentLang === 'en' ? 'Demo Mode Presets:' : 'डेमो मोड प्रीसेट:'}
-                  </span>{' '}
-                  <span className="text-[#5C544E]">
-                    {currentLang === 'en'
-                      ? 'Test recognition without API key or live camera'
-                      : 'एपीआई कुंजी के बिना पहचान का परीक्षण करें'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto">
-                <button
-                  type="button"
-                  id="home-try-sample-red-fort-btn"
-                  onClick={handleTryRedFortSample}
-                  className="min-h-[44px] px-4 py-2 rounded-xl bg-[#C05E42] hover:bg-[#a84d34] text-white text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-2 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#D4AF37]"
-                >
-                  <Sparkles className="w-4 h-4 text-[#D4AF37]" />
-                  <span className={currentLang === 'hi' ? 'font-devanagari text-sm' : ''}>
-                    {currentLang === 'en' ? 'Try sample Red Fort image' : 'लाल किला नमूना आज़माएं'}
-                  </span>
-                </button>
-
-                <Link
-                  to="/profile"
-                  className="min-h-[44px] px-4 py-2 rounded-xl bg-white hover:bg-[#FDFBF7] border border-[#E8E2D9] text-[#1A1A1A] text-xs font-bold transition-colors flex items-center justify-center gap-1.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#C05E42]"
-                >
-                  <span className={currentLang === 'hi' ? 'font-devanagari text-sm' : ''}>
-                    {currentLang === 'en' ? 'All Demo Sites →' : 'सभी डेमो स्थल →'}
-                  </span>
-                </Link>
-              </div>
-            </div>
 
             {analysisError && (
               <div className="mt-4 w-full text-xs text-amber-900 bg-amber-50 p-4 rounded-2xl border border-amber-200 flex items-start gap-3">
@@ -404,6 +433,240 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
           </div>
         </div>
       </section>
+
+      {/* 3.5. AI MONUMENT DISCOVERY & AUTO-CATALOGING SEARCH */}
+      <section className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8">
+        <div 
+          id="ai-monument-search-card"
+          className="bg-[#FDFBF7] border border-[#E8E2D9] rounded-3xl sm:rounded-4xl p-6 sm:p-8 shadow-sm flex flex-col gap-6 relative overflow-hidden"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E8E2D9] pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-[#2C4A3E] text-[#D4AF37] flex items-center justify-center shadow-2xs">
+                <Search className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base sm:text-lg font-bold text-[#1A1A1A] font-serif-heritage">
+                    {currentLang === 'en' ? 'AI Monument Discovery & Auto-Cataloging' : 'एआई स्मारक खोज एवं स्वचालित कैटलॉग'}
+                  </h2>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#8B7319] border border-[#D4AF37]/30">
+                    Gemini 3.5 Flash
+                  </span>
+                </div>
+                <p className="text-xs text-[#5C544E] mt-0.5">
+                  {currentLang === 'en'
+                    ? 'Search any monument, historic bookstore, temple, or landmark in Delhi NCR to generate a full bilingual dossier.'
+                    : 'दिल्ली एनसीआर के किसी भी स्मारक, ऐतिहासिक स्थल, मंदिर या प्रसिद्ध स्थान को खोजकर विस्तृत गाइड तैयार करें।'}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Interactive Search Input Box (No page reload) */}
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5">
+              <div className="relative flex-1">
+                <input
+                  id="ai-monument-search-input"
+                  type="text"
+                  value={aiSearchQuery}
+                  onChange={(e) => setAiSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (aiSearchQuery.trim() && !isAiSearching) {
+                        handleAiMonumentSearch();
+                      }
+                    }
+                  }}
+                  placeholder={currentLang === 'en' ? "Enter any famous place or landmark (e.g. 'ISKCON Temple Noida', 'Fakir Chand Book Store', 'Lotus Temple', 'Salimgarh Fort')..." : "किसी भी प्रसिद्ध स्थल या स्मारक का नाम दर्ज करें (जैसे 'इस्कॉन मंदिर नोएडा', 'फ़कीर चंद बुक स्टोर', 'लोटस टेम्पल')..."}
+                  disabled={isAiSearching}
+                  className="min-h-[46px] w-full pl-11 pr-4 py-2.5 bg-white border border-[#E8E2D9] focus:border-[#C05E42] focus:ring-2 focus:ring-[#C05E42]/20 rounded-2xl text-xs text-[#1A1A1A] outline-hidden transition-all shadow-2xs font-medium"
+                />
+                <Search className="w-4 h-4 text-[#8C8276] absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+
+              <button
+                type="button"
+                id="ai-monument-search-submit-btn"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleAiMonumentSearch();
+                }}
+                disabled={!aiSearchQuery.trim() || isAiSearching}
+                className="min-h-[46px] px-6 py-2.5 bg-[#2C4A3E] hover:bg-[#233a31] disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
+              >
+                {isAiSearching ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 text-[#D4AF37] animate-spin" />
+                    <span>{currentLang === 'en' ? 'Generating...' : 'तैयार किया जा रहा है...'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 text-[#D4AF37]" />
+                    <span>{currentLang === 'en' ? 'Discover & Add Place' : 'खोजें और जोड़ें'}</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Quick Suggestion Chips */}
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <span className="text-[11px] font-bold text-[#8C8276] mr-1">
+                {currentLang === 'en' ? 'Try sample places:' : 'नमूना स्थल आज़माएं:'}
+              </span>
+              {[
+                { en: 'ISKCON Temple Noida', hi: 'इस्कॉन मंदिर नोएडा' },
+                { en: 'Fakir Chand Book Store Khan Market', hi: 'फ़कीर चंद बुक स्टोर खान मार्केट' },
+                { en: 'Lotus Temple Delhi', hi: 'लोटस टेम्पल दिल्ली' },
+                { en: 'Salimgarh Fort', hi: 'सलीमगढ़ किला' },
+                { en: 'Taj Mahal', hi: 'ताज महल' },
+                { en: 'Sunder Nursery Delhi', hi: 'सुंदर नर्सरी दिल्ली' },
+              ].map((item, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const val = currentLang === 'hi' ? item.hi : item.en;
+                    setAiSearchQuery(val);
+                    handleAiMonumentSearch(val);
+                  }}
+                  disabled={isAiSearching}
+                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-[#F3EEE7] border border-[#E8E2D9] text-[11px] text-[#5C544E] hover:text-[#1A1A1A] font-medium transition-colors cursor-pointer shadow-2xs"
+                >
+                  ✨ {currentLang === 'hi' ? item.hi : item.en}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* In-Progress Loading Status */}
+          {isAiSearching && (
+            <div className="p-4 rounded-2xl bg-[#F3EEE7] border border-[#E8E2D9] flex items-center gap-3 animate-pulse">
+              <RefreshCw className="w-5 h-5 text-[#C05E42] animate-spin shrink-0" />
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-[#1A1A1A]">{aiSearchStep}</span>
+                <span className="text-[11px] text-[#5C544E]">
+                  {currentLang === 'en'
+                    ? 'Gemini is researching historical records, architectural styles, and fetching live web imagery.'
+                    : 'जेमिनी ऐतिहासिक रिकॉर्ड, स्थापत्य शैली और लाइव चित्रों का संकलन कर रहा है।'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Result Banner (Clean user-facing: NO Admin button) */}
+          {aiSearchResult && (
+            <div className="flex flex-col gap-3">
+              {aiSearchResult.success && aiSearchResult.isRealHeritageSite && aiSearchResult.site ? (
+                <div className="p-5 rounded-2xl bg-emerald-50/70 border border-emerald-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-xl overflow-hidden bg-stone-200 shrink-0 border border-emerald-200 shadow-2xs">
+                      <img
+                        src={aiSearchResult.site.imageUrl}
+                        alt={aiSearchResult.site.name}
+                        className="w-full h-full object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                    </div>
+                    <div className="flex flex-col">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
+                          ✓ {currentLang === 'en' ? 'Added to Catalog & Database' : 'कैटलॉग एवं डेटाबेस में सहेजा गया'}
+                        </span>
+                        <span className="text-[10px] text-emerald-700 font-mono">
+                          ID: {aiSearchResult.site.id}
+                        </span>
+                      </div>
+                      <h3 className="text-base font-bold text-[#1A1A1A] font-serif-heritage mt-1">
+                        {currentLang === 'hi' ? aiSearchResult.site.hindiName : aiSearchResult.site.name}
+                      </h3>
+                      <p className="text-xs text-[#5C544E] line-clamp-1">
+                        {aiSearchResult.site.builtYear} • {aiSearchResult.site.architecturalStyle}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto shrink-0 pt-2 sm:pt-0 border-t sm:border-0 border-emerald-200">
+                    <button
+                      type="button"
+                      onClick={() => setIsVisualPickerOpen(true)}
+                      className="flex-1 sm:flex-none px-3.5 py-2 bg-[#C05E42] hover:bg-[#a84f36] text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <ImageIcon className="w-3.5 h-3.5 text-[#D4AF37]" />
+                      <span>{currentLang === 'en' ? 'Change Photo' : 'फ़ोटो बदलें'}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/result?site=${aiSearchResult.site?.id}`)}
+                      className="flex-1 sm:flex-none px-4 py-2 bg-[#2C4A3E] hover:bg-[#233a31] text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-[#D4AF37]" />
+                      <span>{currentLang === 'en' ? 'View Result Dossier' : 'परिणाम देखें'}</span>
+                    </button>
+                  </div>
+
+                  {/* Image Picker for newly generated site */}
+                  {aiSearchResult.site && (
+                    <VisualImagePickerModal
+                      isOpen={isVisualPickerOpen}
+                      onClose={() => setIsVisualPickerOpen(false)}
+                      onSelectImage={async (newUrl, newAlt) => {
+                        if (!aiSearchResult.site) return;
+                        const updatedSite = {
+                          ...aiSearchResult.site,
+                          imageUrl: newUrl,
+                          imageAlt: newAlt || aiSearchResult.site.imageAlt
+                        };
+                        await HeritageDataStore.saveSite(updatedSite);
+                        const newResult = {
+                          ...aiSearchResult,
+                          site: updatedSite
+                        };
+                        setAiSearchResult(newResult);
+                        try {
+                          sessionStorage.setItem('heritagelens_last_ai_search_result', JSON.stringify(newResult));
+                        } catch {}
+                        triggerToast(currentLang === 'en' ? 'Updated and saved photo successfully!' : 'फ़ोटो सफलतापूर्वक सहेजी गई!');
+                      }}
+                      currentImageUrl={aiSearchResult.site.imageUrl}
+                      placeName={aiSearchResult.site.name}
+                      categoryTags={aiSearchResult.site.tags}
+                      currentLang={currentLang}
+                    />
+                  )}
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="font-bold block">
+                      {currentLang === 'en' ? 'Monument Not Verified:' : 'स्मारक सत्यापित नहीं हुआ:'}
+                    </span>
+                    <span className="leading-relaxed">
+                      {aiSearchResult.rejectionReason || aiSearchResult.error || (currentLang === 'en' ? 'Could not verify place as a recognized heritage site.' : 'स्थल को प्रमाणित धरोहर स्थल के रूप में नहीं पहचाना जा सका।')}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Toast Notification */}
+      {feedbackToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-[#1A1A1A] text-white text-xs px-4 py-3 rounded-2xl shadow-xl flex items-center gap-2 border border-white/20 animate-in fade-in slide-in-from-bottom-2">
+          <CheckCircle className="w-4 h-4 text-emerald-400" />
+          <span>{feedbackToast}</span>
+        </div>
+      )}
 
       {/* API Key Modal */}
       <ApiKeyPromptModal
@@ -466,7 +729,6 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
                 src={site.imageUrl}
                 alt={site.imageAlt || site.name}
                 onError={(e) => handleMonumentImageError(e, site.id, currentLang === 'hi' ? site.hindiName : site.name, site.imageUrl)}
-                crossOrigin="anonymous"
                 referrerPolicy="no-referrer"
                 className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
