@@ -473,17 +473,21 @@ app.get('/api/image-search', async (req, res) => {
     }
 
     const results = [];
+    let serpApiHadEnoughResults = false;
 
     // 0. SerpAPI Google Images (Priority #0 - Real Google Images Results)
+    //    When SerpAPI returns enough results, we SKIP all fallback sources (Bing, Flickr, etc.)
+    //    because those are the ones that introduce wrong/irrelevant images.
     const serpApiKey = (process.env.SERPAPI_KEY || process.env.SERPAPI_API_KEY || '').trim();
-    if (serpApiKey && results.length < 15) {
+    if (serpApiKey) {
       try {
-        const serpUrl = `https://serpapi.com/search.json?engine=google_images&q=${encodeURIComponent(cleanQuery)}&api_key=${serpApiKey}&num=15`;
+        const serpUrl = `https://serpapi.com/search.json?engine=google_images&q=${encodeURIComponent(cleanQuery)}&api_key=${serpApiKey}&num=20`;
         const sRes = await fetch(serpUrl);
         if (sRes.ok) {
           const sData = await sRes.json();
           const items = sData.images_results || [];
-          for (let i = 0; i < items.length; i++) {
+          const maxFromSerp = 15; // Only take top 15
+          for (let i = 0; i < items.length && results.length < maxFromSerp; i++) {
             const it = items[i];
             const imgUrl = it.original;
             if (imgUrl && imgUrl.startsWith('http') && !results.some((r) => r.url === imgUrl)) {
@@ -496,8 +500,11 @@ app.get('/api/image-search', async (req, res) => {
               });
             }
           }
-          if (results.length > 0) {
-            console.log(`[SerpAPI] Retrieved ${results.length} genuine Google Images for "${cleanQuery}"`);
+          if (results.length >= 8) {
+            serpApiHadEnoughResults = true;
+            console.log(`[SerpAPI] Retrieved ${results.length} genuine Google Images for "${cleanQuery}" — skipping all fallback sources`);
+          } else if (results.length > 0) {
+            console.log(`[SerpAPI] Retrieved ${results.length} Google Images for "${cleanQuery}" — will try fallbacks for more`);
           }
         }
       } catch (err) {

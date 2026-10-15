@@ -188,6 +188,7 @@ export const HeritageDataStore = {
     );
 
     if (existingIndex >= 0) {
+      const existing = sites[existingIndex];
       // Monument is already listed in catalog! Merge to preserve canonical ID and update image/details
       const merged: HeritageSite = {
         ...existing,
