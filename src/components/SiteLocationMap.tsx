@@ -59,19 +59,19 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
 
       mapInstanceRef.current = map;
 
-      // Add high-reliability CartoDB Voyager Tile Layer with OpenStreetMap fallback
-      const primaryTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      // Add OpenStreetMap Tile Layer (100% open, high quality, free of watermarks and API keys)
+      const primaryTile = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
-        subdomains: 'abcd',
+        subdomains: ['a', 'b', 'c'],
         attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer">CARTO</a>'
+          '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors'
       });
 
       primaryTile.on('tileerror', () => {
         try {
-          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 19,
-            attribution: '&copy; OpenStreetMap contributors'
+            attribution: 'Tiles &copy; Esri'
           }).addTo(map);
         } catch (_) {}
       });
