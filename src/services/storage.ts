@@ -2,7 +2,8 @@ import { UserSettings } from '../types';
 
 const STORAGE_KEYS = {
   SETTINGS: 'heritagelens_settings_v1',
-  GEMINI_API_KEY: 'heritagelens_gemini_api_key',
+  AI_API_KEY: 'heritagelens_ai_api_key',
+  GEMINI_API_KEY_LEGACY: 'heritagelens_gemini_api_key',
   APP_MODE: 'heritagelens_app_mode_v1',
   SAVED_SEARCHES: 'heritagelens_saved_history_v1',
   LAST_RESULT: 'heritagelens_last_result_v1',
@@ -10,11 +11,13 @@ const STORAGE_KEYS = {
 };
 
 const DEFAULT_SETTINGS: UserSettings = {
+  apiKey: '',
+  aiApiKey: '',
   geminiApiKey: '',
   preferredLanguage: 'en',
   speechRate: 0.95,
   autoPlayAudio: false,
-  appMode: 'demo',
+  appMode: 'ai',
 };
 
 export const StorageService = {
@@ -135,11 +138,12 @@ export const StorageService = {
 
   getApiKey(): string {
     try {
-      const directKey = localStorage.getItem(STORAGE_KEYS.GEMINI_API_KEY);
+      const directKey = localStorage.getItem(STORAGE_KEYS.AI_API_KEY) || localStorage.getItem(STORAGE_KEYS.GEMINI_API_KEY_LEGACY);
       if (directKey && directKey.trim()) {
         return directKey.trim();
       }
-      return this.getSettings().geminiApiKey?.trim() || '';
+      const settings = this.getSettings();
+      return (settings.apiKey || settings.aiApiKey || settings.geminiApiKey || '').trim();
     } catch (e) {
       return '';
     }
@@ -149,23 +153,26 @@ export const StorageService = {
     const trimmed = key.trim();
     try {
       if (trimmed) {
-        localStorage.setItem(STORAGE_KEYS.GEMINI_API_KEY, trimmed);
+        localStorage.setItem(STORAGE_KEYS.AI_API_KEY, trimmed);
+        localStorage.removeItem(STORAGE_KEYS.GEMINI_API_KEY_LEGACY);
       } else {
-        localStorage.removeItem(STORAGE_KEYS.GEMINI_API_KEY);
+        localStorage.removeItem(STORAGE_KEYS.AI_API_KEY);
+        localStorage.removeItem(STORAGE_KEYS.GEMINI_API_KEY_LEGACY);
       }
     } catch (e) {
       console.warn('Failed to set API key in localStorage');
     }
-    this.saveSettings({ geminiApiKey: trimmed });
+    this.saveSettings({ apiKey: trimmed, aiApiKey: trimmed, geminiApiKey: trimmed });
   },
 
   clearApiKey(): void {
     try {
-      localStorage.removeItem(STORAGE_KEYS.GEMINI_API_KEY);
+      localStorage.removeItem(STORAGE_KEYS.AI_API_KEY);
+      localStorage.removeItem(STORAGE_KEYS.GEMINI_API_KEY_LEGACY);
     } catch (e) {
       // safe fallback
     }
-    this.saveSettings({ geminiApiKey: '' });
+    this.saveSettings({ apiKey: '', aiApiKey: '', geminiApiKey: '' });
   },
 
   maskApiKey(key: string): string {

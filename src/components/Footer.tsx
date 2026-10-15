@@ -64,8 +64,8 @@ export const Footer: React.FC<FooterProps> = ({ currentLang, onLangChange }) => 
             <ShieldAlert className="w-4 h-4 text-[#D4AF37] shrink-0 mt-0.5 sm:mt-0" />
             <p>
               {currentLang === 'en'
-                ? 'Prototype Disclaimer: This is an educational demonstration prototype. AI image identification is powered by Google Gemini Vision. Historical facts are compiled from Archaeological Survey of India (ASI) & UNESCO World Heritage Centre records. Map data © OpenStreetMap contributors.'
-                : 'प्रोटोटाइप अस्वीकरण: यह एक शैक्षिक प्रदर्शन प्रोटोटाइप है। एआई छवि पहचान गूगल जेमिनी विज़न द्वारा संचालित है। ऐतिहासिक तथ्य एएसआई और यूनेस्को रिकॉर्ड से लिए गए हैं। मानचित्र डेटा © OpenStreetMap योगदानकर्ता।'}
+                ? 'Prototype Disclaimer: This is an educational heritage portal. AI image identification is powered by Multimodal AI Vision. Historical facts are compiled from Archaeological Survey of India (ASI) & UNESCO World Heritage Centre records. Map data © OpenStreetMap contributors.'
+                : 'प्रोटोटाइप अस्वीकरण: यह एक शैक्षिक धरोहर पोर्टल है। एआई छवि पहचान मल्टीमॉडल एआई विज़न द्वारा संचालित है। ऐतिहासिक तथ्य एएसआई और यूनेस्को रिकॉर्ड से लिए गए हैं। मानचित्र डेटा © OpenStreetMap योगदानकर्ता।'}
             </p>
           </div>
 

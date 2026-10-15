@@ -31,10 +31,10 @@ async function callGemini(ai, requestConfig) {
       return { response, model };
     } catch (err) {
       lastErr = err;
-      console.warn(`[Gemini Server] Model ${model} failed (${err.message?.slice(0, 80)}). Trying next...`);
+      console.warn(`[AI Server] Model ${model} failed (${err.message?.slice(0, 80)}). Trying next...`);
     }
   }
-  throw lastErr || new Error('All Gemini fallback models exhausted.');
+  throw lastErr || new Error('All AI fallback models exhausted.');
 }
 
 /**
@@ -43,7 +43,7 @@ async function callGemini(ai, requestConfig) {
 export async function identifyMonumentImage(imageDataUrl, preferredLang = 'en') {
   const apiKey = getApiKey();
   if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured on the server environment.');
+    throw new Error('AI Vision service is not configured on the server environment.');
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -110,7 +110,7 @@ CRITICAL INSTRUCTIONS:
     if (jsonMatch) {
       parsed = JSON.parse(jsonMatch[0]);
     } else {
-      throw new Error('Failed to parse response JSON from Gemini.');
+      throw new Error('Failed to parse response JSON from AI engine.');
     }
   }
 
@@ -126,7 +126,7 @@ CRITICAL INSTRUCTIONS:
 export async function generateSiteDossier(query, preferredLang = 'en') {
   const apiKey = getApiKey();
   if (!apiKey) {
-    throw new Error('GEMINI_API_KEY is not configured on the server environment.');
+    throw new Error('AI Vision service is not configured on the server environment.');
   }
 
   const ai = new GoogleGenAI({ apiKey });
@@ -294,20 +294,20 @@ RULES:
             const validItems = items
               .filter(item => item.url && typeof item.url === 'string' && item.url.startsWith('http') && /\.(jpg|jpeg|png|webp)($|\?)/i.test(item.url))
               .map((item, idx) => ({
-                id: `gemini-${idx}-${Date.now()}`,
+                id: `img-${idx}-${Date.now()}`,
                 title: item.title || query,
                 url: item.url,
                 thumbUrl: item.url,
-                source: item.source ? `Google · ${item.source}` : 'Google Search',
+                source: item.source ? item.source : 'Web Archives',
               }));
             
             if (validItems.length > 0) {
-              console.log(`[Gemini Image Search] Found ${validItems.length} images for "${query}" via ${model}`);
+              console.log(`[AI Image Search] Found ${validItems.length} images for "${query}" via ${model}`);
               return validItems;
             }
           }
         } catch (parseErr) {
-          console.warn(`[Gemini Image Search] JSON parse error for ${model}:`, parseErr.message);
+          console.warn(`[AI Image Search] JSON parse error for ${model}:`, parseErr.message);
         }
       }
 
@@ -318,19 +318,19 @@ RULES:
         const webResults = groundingChunks
           .filter(chunk => chunk.web?.uri && /\.(jpg|jpeg|png|webp)($|\?)/i.test(chunk.web.uri))
           .map((chunk, idx) => ({
-            id: `grounding-${idx}-${Date.now()}`,
+            id: `img-g-${idx}-${Date.now()}`,
             title: chunk.web.title || query,
             url: chunk.web.uri,
             thumbUrl: chunk.web.uri,
-            source: 'Google Search',
+            source: 'Web Archives',
           }));
         if (webResults.length > 0) {
-          console.log(`[Gemini Image Search] Found ${webResults.length} grounding image results for "${query}"`);
+          console.log(`[AI Image Search] Found ${webResults.length} grounding image results for "${query}"`);
           return webResults;
         }
       }
     } catch (err) {
-      console.warn(`[Gemini Image Search] Model ${model} failed:`, err.message?.slice(0, 100));
+      console.warn(`[AI Image Search] Model ${model} failed:`, err.message?.slice(0, 100));
     }
   }
 

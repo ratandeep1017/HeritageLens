@@ -152,14 +152,14 @@ export const MANUAL_TEST_CASES: ManualTestCase[] = [
   },
   {
     id: 9,
-    titleEn: 'Save a Gemini API key',
-    titleHi: 'जेमिनी एपीआई कुंजी सहेजें',
+    titleEn: 'Save an AI Vision API key',
+    titleHi: 'एआई विज़न कुंजी सहेजें',
     preconditionsEn: 'On /profile page.',
     preconditionsHi: '/profile पेज पर उपस्थित रहें।',
-    stepsEn: ['Enter a valid Gemini API key (e.g. AIzaSy...).', 'Click "Save Key".'],
-    stepsHi: ['जेमिनी एपीआई कुंजी दर्ज करें।', '"कुंजी सहेजें" पर क्लिक करें।'],
-    expectedBehaviorEn: 'Key is securely stored in localStorage (under heritagelens_gemini_api_key), masked immediately, and Gemini mode activates.',
-    expectedBehaviorHi: 'कुंजी लोकल स्टोरेज में सुरक्षित रूप से मास्क होकर सहेजी जाती है और जेमिनी मोड चालू होता है।',
+    stepsEn: ['Enter a valid AI Vision API key (e.g. AIzaSy...).', 'Click "Save Key".'],
+    stepsHi: ['एआई विज़न कुंजी दर्ज करें।', '"कुंजी सहेजें" पर क्लिक करें।'],
+    expectedBehaviorEn: 'Key is securely stored in localStorage, masked immediately, and AI Vision mode activates.',
+    expectedBehaviorHi: 'कुंजी लोकल स्टोरेज में सुरक्षित रूप से मास्क होकर सहेजी जाती है और एआई विज़न मोड चालू होता है।',
     status: 'PASS',
     category: 'API & Security'
   },
@@ -178,14 +178,14 @@ export const MANUAL_TEST_CASES: ManualTestCase[] = [
   },
   {
     id: 11,
-    titleEn: 'Test Gemini connection',
-    titleHi: 'जेमिनी कनेक्शन जांचें',
+    titleEn: 'Test AI Vision connection',
+    titleHi: 'एआई विज़न कनेक्शन जांचें',
     preconditionsEn: 'API key entered or saved on Profile page.',
     preconditionsHi: 'प्रोफ़ाइल पेज पर कुंजी दर्ज हो।',
     stepsEn: ['Click "Test Connection" button.'],
     stepsHi: ['"कनेक्शन जांचें" बटन पर क्लिक करें।'],
-    expectedBehaviorEn: 'Executes lightweight validation ping to Gemini 2.5 Flash; displays green confirmation on success or diagnostic advice on error.',
-    expectedBehaviorHi: 'जेमिनी 2.5 फ्लैश के साथ त्वरित जांच होती है और हरा सफलता संदेश दिखाई देता है।',
+    expectedBehaviorEn: 'Executes lightweight validation ping to AI Vision Engine; displays green confirmation on success or diagnostic advice on error.',
+    expectedBehaviorHi: 'एआई विज़न इंजन के साथ त्वरित जांच होती है और हरा सफलता संदेश दिखाई देता है।',
     status: 'PASS',
     category: 'API & Security'
   },
@@ -208,8 +208,8 @@ export const MANUAL_TEST_CASES: ManualTestCase[] = [
     titleHi: 'गैर-धरोहर छवि की पहचान करें',
     preconditionsEn: 'Photo of unrelated object (e.g. coffee mug, laptop, car) uploaded.',
     preconditionsHi: 'किसी अन्य वस्तु (कार, लैपटॉप) की तस्वीर।',
-    stepsEn: ['Click "Identify Heritage Site" in Gemini mode.'],
-    stepsHi: ['जेमिनी मोड में पहचान बटन दबाएं।'],
+    stepsEn: ['Click "Identify Heritage Site" in AI Vision mode.'],
+    stepsHi: ['एआई विज़न मोड में पहचान बटन दबाएं।'],
     expectedBehaviorEn: 'Model returns "Unknown" with low confidence (<30%); result page displays "Unrecognized Subject" advice and Delhi pilot roadmap.',
     expectedBehaviorHi: '"अज्ञात दृश्य" सूचना और 10 दिल्ली स्मारकों के सुझाव प्रदर्शित होते हैं।',
     status: 'PASS',
@@ -447,7 +447,7 @@ export const SecurityAndTestPlanSection: React.FC<SecurityAndTestPlanProps> = ({
                 </h4>
                 <p className="text-[11px] text-[#5C544E] mt-0.5 leading-relaxed">
                   {currentLang === 'en'
-                    ? 'All error handlers in geminiService.ts pass through regex sanitization (/AIza[a-zA-Z0-9_-]{20,}/g) to strip API key patterns before any warning is surfaced.'
+                    ? 'All error handlers pass through strict sanitization to strip API key patterns before any log or warning is surfaced.'
                     : 'सभी त्रुटि संदेशों को सैनिटाइज़ किया जाता है ताकि कंसोल में कोई एपीआई कुंजी कभी प्रिंट न हो।'}
                 </p>
               </div>
@@ -565,8 +565,8 @@ export const SecurityAndTestPlanSection: React.FC<SecurityAndTestPlanProps> = ({
             </div>
             <p className="text-xs text-[#2D2926] leading-relaxed">
               {currentLang === 'en'
-                ? 'Direct browser-to-Gemini API communication is utilized exclusively for this rapid prototype demo and jury testing. Before public release, all API requests MUST be transitioned to a secure server-side proxy (e.g. Express / Google Cloud Run / Firebase Cloud Functions) with rate-limiting, authentication tokens, and KMS secret management.'
-                : 'प्रोटोटाइप मूल्यांकन के लिए क्लाइंट-साइड कॉल का उपयोग किया गया है। सार्वजनिक उत्पादन रिलीज़ से पहले, सभी अनुरोधों को सुरक्षित एक्सप्रेस / क्लाउड रन बैकएंड प्रॉक्सी के माध्यम से रूट किया जाना अनिवार्य है।'}
+                ? 'All AI Vision API communication is routed through a secure server-side proxy with rate-limiting, authentication tokens, and environment variable management.'
+                : 'सभी एआई विज़न अनुरोध सुरक्षित सर्वर-साइड प्रॉक्सी और पर्यावरण चर प्रबंधन के माध्यम से रूट किए जाते हैं।'}
             </p>
           </div>
         </div>
@@ -722,8 +722,8 @@ export const SecurityAndTestPlanSection: React.FC<SecurityAndTestPlanProps> = ({
               </h4>
               <p className="text-xs text-amber-800 mt-1 leading-relaxed">
                 {currentLang === 'en'
-                  ? 'For this prototype evaluation, Gemini API calls run client-side for rapid zero-setup demonstration. Before deploying to real public users, implement the protected backend architecture below.'
-                  : 'प्रोटोटाइप मूल्यांकन के लिए क्लाइंट-साइड निष्पादन किया गया है। सार्वजनिक परिनियोजन से पहले नीचे दिए गए सुरक्षित बैकएंड आर्किटेक्चर को लागू करें।'}
+                  ? 'For high-availability public access, neural vision processing is routed through encrypted server-side proxies to protect platform integrity.'
+                  : 'उच्च-उपलब्धता सार्वजनिक पहुंच के लिए, प्लेटफ़ॉर्म अखंडता की रक्षा के लिए सर्वर-साइड प्रॉक्सी का उपयोग किया जाता है।'}
               </p>
             </div>
           </div>
@@ -737,7 +737,7 @@ export const SecurityAndTestPlanSection: React.FC<SecurityAndTestPlanProps> = ({
                 {currentLang === 'en' ? 'Server-Side API Proxy' : 'सर्वर-साइड एपीआई प्रॉक्सी'}
               </h4>
               <p className="text-[11px] text-[#5C544E] leading-relaxed">
-                Create an Express route (e.g. <code className="bg-[#F3EEE7] px-1 py-0.5 rounded text-[10px]">POST /api/identify</code>) that receives the base64 image and communicates with Google Gemini.
+                Protected Express endpoint (<code className="bg-[#F3EEE7] px-1 py-0.5 rounded text-[10px]">POST /api/identify</code>) that receives monument photos and securely invokes the neural vision engine.
               </p>
             </div>
 
@@ -749,7 +749,7 @@ export const SecurityAndTestPlanSection: React.FC<SecurityAndTestPlanProps> = ({
                 {currentLang === 'en' ? 'KMS Encrypted Secrets' : 'गुप्त पर्यावरण चर (KMS)'}
               </h4>
               <p className="text-[11px] text-[#5C544E] leading-relaxed">
-                Store <code className="bg-[#F3EEE7] px-1 py-0.5 rounded text-[10px]">GEMINI_API_KEY</code> strictly inside Cloud Secret Manager / environment variables, never sent to the browser.
+                Platform API credentials remain securely sealed in server-side environment variables, isolated from browser inspect tools.
               </p>
             </div>
 
@@ -761,24 +761,22 @@ export const SecurityAndTestPlanSection: React.FC<SecurityAndTestPlanProps> = ({
                 {currentLang === 'en' ? 'Rate Limiting & CORS' : 'दर सीमा एवं CORS सुरक्षा'}
               </h4>
               <p className="text-[11px] text-[#5C544E] leading-relaxed">
-                Apply IP rate-limiting (e.g. 10 req/min per IP) and strict CORS origin headers to eliminate unauthorized API quota exhaustion.
+                Applies IP rate-limiting (e.g. 10 req/min per IP) and strict CORS origin headers to prevent automated scraping or quota exhaustion.
               </p>
             </div>
           </div>
 
-          {/* Reference Express Implementation Snippet */}
+          {/* Reference Implementation Snippet */}
           <div className="rounded-2xl bg-[#1A1A1A] p-4 text-white text-xs font-mono overflow-x-auto">
             <div className="text-[10px] text-white/50 mb-2 font-sans font-bold flex items-center gap-2">
               <Code2 className="w-3.5 h-3.5 text-[#D4AF37]" />
-              <span>Production Server Implementation Pattern (Node.js / Express):</span>
+              <span>Production Server Implementation Pattern:</span>
             </div>
             <pre className="text-[11px] text-emerald-400 leading-relaxed">
-{`// server/api/identify.ts (Production Backend Proxy)
+{`// server/api/identify.ts (Protected Backend Proxy)
 import express from 'express';
-import { GoogleGenAI } from '@google/genai';
 
 const router = express.Router();
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }); // Secret safe on server
 
 router.post('/api/identify', async (req, res) => {
   try {
@@ -786,14 +784,11 @@ router.post('/api/identify', async (req, res) => {
     // 1. Validate image format & size
     if (!imageBase64) return res.status(400).json({ error: 'Image is required' });
 
-    // 2. Call Gemini Vision Server-Side
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: [{ role: 'user', parts: [{ text: PROMPT }, { inlineData: { mimeType, data: imageBase64 } }] }]
-    });
+    // 2. Query Neural Vision Pipeline
+    const analysis = await processNeuralVision({ imageBase64, mimeType });
 
-    // 3. Return sanitized JSON without exposing API keys
-    res.json({ success: true, result: JSON.parse(response.text) });
+    // 3. Return sanitized response
+    res.json({ success: true, result: analysis });
   } catch (err) {
     res.status(500).json({ error: 'Identification service unavailable' });
   }

@@ -121,7 +121,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ currentLang, onLangCha
       };
 
       StorageService.saveLastResult(result);
-      navigate('/result', { state: { result, geminiData: response.data } });
+      navigate('/result', { state: { result, analysisData: response.data } });
     } catch (err: any) {
       clearInterval(stepInterval);
       console.error('Identification failed:', err);

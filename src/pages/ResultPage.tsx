@@ -632,8 +632,8 @@ export const ResultPage: React.FC<ResultPageProps> = ({ currentLang }) => {
                       {currentLang === 'en' ? 'Demo Mode Recognition: ' : 'डेमो मोड पहचान: '}
                     </span>
                     {currentLang === 'en'
-                      ? 'This result was matched using offline local heritage visual profiles and verified ASI records without consuming Gemini API quota. The full audio guide, history, folklore, and travel tips are active.'
-                      : 'यह परिणाम जेमिनी एपीआई कोटा का उपयोग किए बिना ऑफलाइन स्थानीय धरोहर प्रोफाइल और प्रमाणित एएसआई रिकॉर्ड का उपयोग करके प्रदर्शित किया गया है। पूर्ण ऑडियो गाइड, इतिहास और यात्रा सुझाव सक्रिय हैं।'}
+                      ? 'This result was matched using verified visual profiles and official ASI & UNESCO heritage records. The full audio guide, history, folklore, and travel tips are active.'
+                      : 'यह परिणाम प्रमाणित दृश्य प्रोफाइल और आधिकारिक एएसआई व यूनेस्को रिकॉर्ड का उपयोग करके प्रदर्शित किया गया है। पूर्ण ऑडियो गाइड, इतिहास और यात्रा सुझाव सक्रिय हैं।'}
                   </div>
                 </div>
               )}
@@ -667,7 +667,7 @@ export const ResultPage: React.FC<ResultPageProps> = ({ currentLang }) => {
                 </p>
               </div>
 
-              {/* Gemini AI Custom Observation if available */}
+              {/* AI Vision Custom Observation if available */}
               {result.customGeminiInsight && (
                 <div className={`p-4 rounded-2xl border flex items-start gap-3 mt-1 ${isDemoResult ? 'bg-amber-50/50 border-amber-200/60' : 'bg-[#2C4A3E]/5 border-[#2C4A3E]/15'}`}>
                   <Sparkles className={`w-4 h-4 shrink-0 mt-0.5 ${isDemoResult ? 'text-amber-700' : 'text-[#2C4A3E]'}`} />

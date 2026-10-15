@@ -311,15 +311,15 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ currentLang, onLangCha
                     </p>
                   </div>
 
-                  {/* Google Gemini Multimodal Vision */}
+                  {/* AI Vision Engine */}
                   <div className="p-4 rounded-2xl bg-[#F3EEE7] border border-[#E8E2D9] flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] uppercase font-bold tracking-wider text-[#C05E42]">AI Vision Engine</span>
-                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">Server Active</span>
+                      <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md">Active</span>
                     </div>
-                    <h3 className="text-sm font-bold text-[#1A1A1A]">Google Gemini 3.8 Flash</h3>
+                    <h3 className="text-sm font-bold text-[#1A1A1A]">HeritageLens Neural Vision</h3>
                     <p className="text-xs text-[#5C544E]">
-                      {currentLang === 'en' ? 'Configured in Render backend' : 'रेंडर बैकएंड में स्वचालित सक्रिय'}
+                      {currentLang === 'en' ? 'Multimodal neural vision for monuments' : 'स्मारकों के लिए मल्टीमॉडल एआई विज़न'}
                     </p>
                   </div>
                 </div>

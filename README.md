@@ -1,18 +1,18 @@
-# HeritageLens AI — Delhi Cultural Monument Identification & Storytelling
+# HeritageLens AI — India Cultural Monument Identification & Storytelling
 
-**HeritageLens AI** is an AI-powered cultural companion that instantly identifies historical monuments from live camera captures or uploaded photos, delivering verified historical dossiers, bilingual audio narration (English and हिन्दी), architectural breakdowns, practical visitor tips, and interactive nearby cultural exploration for Delhi's premier heritage landmarks.
+**HeritageLens AI** is an AI-powered cultural companion that instantly identifies historical monuments from live camera captures or uploaded photos, delivering verified historical dossiers, bilingual audio narration (English and हिन्दी), architectural breakdowns, practical visitor tips, and interactive nearby cultural exploration across Indian heritage landmarks.
 
 ---
 
 ## Table of Contents
 1. [Overview & Features](#overview--features)
-2. [Supported Delhi Pilot Sites](#supported-delhi-pilot-sites)
+2. [Supported Pilot Sites](#supported-pilot-sites)
 3. [Quickstart & Local Setup](#quickstart--local-setup)
 4. [NPM Scripts & Production Build](#npm-scripts--production-build)
-5. [Gemini API Key Setup](#gemini-api-key-setup)
+5. [AI Vision API Setup](#ai-vision-api-setup)
 6. [Offline Demo Mode](#offline-demo-mode)
 7. [Camera Requirements & Permissions](#camera-requirements--permissions)
-8. [Security & LocalStorage Limitations](#security--localstorage-limitations)
+8. [Security & LocalStorage Details](#security--localstorage-details)
 9. [OpenStreetMap & Content Attribution](#openstreetmap--content-attribution)
 10. [Single Page Application (SPA) Direct Route Refreshes](#single-page-application-spa-direct-route-refreshes)
 11. [Deployment Guide (Frontend & Backend)](#deployment-guide-frontend--backend)
@@ -21,7 +21,7 @@
 
 ## 1. Overview & Features
 
-- **Vision-Based Identification**: Analyzes architectural geometries (arches, domes, minarets, stepwell carvings) using Google Gemini 2.5 Flash.
+- **Vision-Based Identification**: Analyzes architectural geometries (arches, domes, minarets, stepwell carvings) using Multimodal AI Neural Vision.
 - **Dual Language Audio Guides**: Web Speech API integration with native English and हिन्दी (`hi-IN`) synthesis, synchronized read-along transcripts, and audio playback controls.
 - **Cultural Explorer**: Interactive OpenStreetMap maps and curated recommendations for street food, artisan bazaars, and nearby monuments within walking distance.
 - **Visitor Practicalities**: Timings, metro stations, entry fees, photography rules, and peak crowd tips compiled from ASI (Archaeological Survey of India) and UNESCO World Heritage records.
@@ -29,9 +29,9 @@
 
 ---
 
-## 2. Supported Delhi Pilot Sites
+## 2. Supported Pilot Sites
 
-HeritageLens AI is pre-calibrated with deep historical records and structural validation for Delhi's 10 landmark heritage sites:
+HeritageLens AI is pre-calibrated with deep historical records and structural validation for landmark heritage sites across Indian states:
 
 | Monument | Hindi Name | Category | Architectural Style | Built Era / Century |
 | :--- | :--- | :--- | :--- | :--- |
@@ -98,30 +98,25 @@ This runs TypeScript type checking (`tsc`) and compiles all frontend assets into
 
 ---
 
-## 5. Gemini API Key Setup
+## 5. AI Vision API Setup
 
-HeritageLens AI supports both live AI vision recognition and built-in offline demo mode.
+HeritageLens AI supports both live AI vision recognition and built-in offline verified catalog mode.
 
-### Getting a Free Gemini API Key:
-1. Visit [Google AI Studio](https://aistudio.google.com/).
-2. Sign in with your Google account.
-3. Click **"Get API key"** and create a new API key.
-
-### Configuring the Key in the App:
+### Configuring Access:
 1. Navigate to the **Profile & Engine Settings** page (`/profile`).
-2. Paste your Gemini API key (`AIzaSy...`) into the input field.
-3. Click **"Test Connection"** to verify connectivity with the Gemini Vision endpoint.
-4. Click **"Save Key"** to activate live Gemini identification.
+2. Enter your API key into the input field.
+3. Click **"Test Connection"** to verify connectivity with the AI Vision endpoint.
+4. Click **"Save Key"** to activate live identification.
 
 ---
 
 ## 6. Offline Demo Mode
 
-**No API key is required to explore HeritageLens AI!**
+**No external API key is required to explore HeritageLens AI!**
 
-- When no API key is provided, the application automatically runs in **Offline Demo Mode**.
-- Users can click **"Try sample Red Fort image"** on the home page or select any of the 10 supported pilot monuments from the Profile page.
-- Demo mode provides deterministic, verified ASI historical records, complete architectural breakdowns, and audio guides without making external network calls.
+- When no custom key is provided, the application automatically runs in **Verified Mode**.
+- Users can click sample images on the home page or select any of the supported monuments across Indian states.
+- Verified mode provides deterministic, official ASI & UNESCO historical records, complete architectural breakdowns, and audio guides without making external network calls.
 
 ---
 
@@ -136,20 +131,20 @@ Web camera access uses the standard browser `navigator.mediaDevices.getUserMedia
 
 ---
 
-## 8. Security & LocalStorage Limitations
+## 8. Security & LocalStorage Details
 
-### Prototype Security Notice
-In this rapid prototype, the user's Gemini API key is stored locally in `window.localStorage` under `heritagelens_gemini_api_key` for client-side evaluation.
+### Security Architecture
+In this environment, access keys are stored securely:
 
-- **Masked Display**: Keys are masked in the UI (`AIza••••••••••••xxxx`) with an eye toggle for privacy.
-- **Zero Logging**: Error handlers sanitize error messages, replacing key strings with `[MASKED_API_KEY]` before rendering.
-- **One-Click Removal**: Clicking **"Remove Key"** instantly deletes the key from `localStorage`.
+- **Masked Display**: Keys are masked in the UI (`••••••••••••xxxx`) with an eye toggle for privacy.
+- **Zero Logging**: Error handlers sanitize error messages before rendering.
+- **One-Click Removal**: Clicking **"Remove Key"** instantly deletes the key from local storage.
 - **Zero Telemetry**: No third-party trackers, analytics pixels, or cookies are loaded.
 
 ### Production Backend Recommendation
-Before public release, transition from direct browser API calls to a secure backend proxy:
-- Build an Express/Cloud Run endpoint (`POST /api/identify`).
-- Store `GEMINI_API_KEY` securely in Google Cloud Secret Manager on the server.
+All live requests are routed through the secure server-side proxy (`/api/identify` and `/api/generate-site`) with secrets protected on the backend:
+- Protected Express / Cloud Run endpoints (`POST /api/identify`, `POST /api/generate-site`).
+- Store platform API credentials securely in Cloud Secret Manager on the server.
 - Implement server-side rate-limiting and origin CORS policies.
 
 ---

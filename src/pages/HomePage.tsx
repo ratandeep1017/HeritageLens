@@ -218,7 +218,7 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
     const key = StorageService.getApiKey() || '';
     setIsAiSearching(true);
     setAiSearchResult(null);
-    setAiSearchStep(currentLang === 'en' ? 'Consulting Gemini AI...' : 'गूगल जेमिनी एआई से परामर्श हो रहा है...');
+    setAiSearchStep(currentLang === 'en' ? 'Analyzing heritage records with AI...' : 'एआई हेरिटेज रिकॉर्ड का विश्लेषण हो रहा है...');
 
     try {
       const res = await generateHeritageSiteFromSearch(targetQuery, key, currentLang);
@@ -308,7 +308,7 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
       StorageService.saveLastResult(result);
       
       // Navigate to /result with result state
-      navigate('/result', { state: { result, geminiData: response.data } });
+      navigate('/result', { state: { result, analysisData: response.data } });
     } catch (err: any) {
       console.error('Identification failed:', err);
       setAnalysisError(
@@ -591,7 +591,7 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
                     {currentLang === 'en' ? 'AI Monument Discovery & Auto-Cataloging' : 'एआई स्मारक खोज एवं स्वचालित कैटलॉग'}
                   </h2>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#D4AF37]/20 text-[#8B7319] border border-[#D4AF37]/30">
-                    Gemini 3.5 Flash
+                    AI Neural Engine
                   </span>
                 </div>
                 <p className="text-xs text-[#5C544E] mt-0.5">
@@ -693,8 +693,8 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
                 <span className="text-xs font-bold text-[#1A1A1A]">{aiSearchStep}</span>
                 <span className="text-[11px] text-[#5C544E]">
                   {currentLang === 'en'
-                    ? 'Gemini is researching historical records, architectural styles, and fetching live web imagery.'
-                    : 'जेमिनी ऐतिहासिक रिकॉर्ड, स्थापत्य शैली और लाइव चित्रों का संकलन कर रहा है।'}
+                    ? 'HeritageLens AI is researching historical archives, architectural styles, and authentic imagery.'
+                    : 'हेरिटेज लेंस एआई ऐतिहासिक रिकॉर्ड, स्थापत्य शैली और चित्रों का संकलन कर रहा है।'}
                 </span>
               </div>
             </div>
@@ -1169,7 +1169,7 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
             </h4>
             <p className="text-xs text-[#5C544E]">
               {currentLang === 'en'
-                ? 'Type any historic temple, fort, gurdwara, stepwell, or palace from any Indian state to instantly generate its verified dossier with Gemini AI.'
+                ? 'Type any historic temple, fort, gurdwara, stepwell, or palace from any Indian state to instantly generate its verified dossier with HeritageLens AI.'
                 : 'भारत के किसी भी राज्य के ऐतिहासिक मंदिर, किले, गुरुद्वारे, बावड़ी या महल का नाम दर्ज करें और तुरंत एआई विवरण तैयार करें।'}
             </p>
           </div>

@@ -209,7 +209,7 @@ async function callGeminiGenerateContent(
         errMsg.includes('RESOURCE_EXHAUSTED') ||
         errMsg.includes('quota')
       ) {
-        console.warn(`[GeminiService] Model ${model} returned error/rate limit (${errMsg.slice(0, 100)}), attempting next fallback model...`);
+        console.warn(`[HeritageLens Vision] Model ${model} returned error/rate limit (${errMsg.slice(0, 100)}), attempting next fallback model...`);
         continue;
       }
       // If auth or fatal error, throw immediately
@@ -217,7 +217,7 @@ async function callGeminiGenerateContent(
     }
   }
 
-  throw lastError || new Error('Failed to generate content with available Gemini models.');
+  throw lastError || new Error('Failed to generate content with available AI vision models.');
 }
 
 /**
@@ -234,7 +234,7 @@ export async function testGeminiConnection(apiKey?: string): Promise<{
   if (!keyToUse) {
     return {
       success: false,
-      message: 'No API key provided. Please enter a valid Gemini API key.',
+      message: 'No API key provided. Please enter a valid API key.',
     };
   }
 
@@ -251,11 +251,11 @@ export async function testGeminiConnection(apiKey?: string): Promise<{
     if (responseText.length > 0) {
       return {
         success: true,
-        message: `Successfully connected to Gemini API (${usedModel}).`,
+        message: 'Successfully connected to AI Vision Engine.',
         model: usedModel,
       };
     } else {
-      throw new Error('Received an empty response from Gemini.');
+      throw new Error('Received an empty response from AI engine.');
     }
   } catch (err: any) {
     const safeError = sanitizeErrorMessage(err);
@@ -263,17 +263,17 @@ export async function testGeminiConnection(apiKey?: string): Promise<{
     if (safeError.includes('400') || safeError.includes('403') || safeError.includes('API_KEY_INVALID') || safeError.includes('key not valid')) {
       return {
         success: false,
-        message: 'Invalid or blocked Gemini API key. Please check your credentials in Google AI Studio.',
+        message: 'Invalid or blocked API key. Please check your credentials.',
       };
     } else if (safeError.includes('429') || safeError.includes('RESOURCE_EXHAUSTED') || safeError.includes('quota')) {
       return {
         success: false,
-        message: 'Gemini API quota exceeded or rate limited. Please try again in a few moments.',
+        message: 'AI service quota or rate limit reached. Please try again in a few moments.',
       };
     } else if (safeError.includes('fetch') || safeError.includes('network') || safeError.includes('Failed to fetch')) {
       return {
         success: false,
-        message: 'Network error connecting to Gemini API. Check your internet connection.',
+        message: 'Network error connecting to AI service. Check your internet connection.',
       };
     }
 
@@ -488,7 +488,7 @@ export async function generateHeritageSiteFromSearch(
       }
     }
   } catch (serverErr) {
-    console.warn('[GeminiService] Server /api/generate-site error:', serverErr);
+    console.warn('[HeritageLens Vision] Server /api/generate-site error:', serverErr);
   }
 
   const effectiveKey = (apiKey || getStoredGeminiKey()).trim();
@@ -496,7 +496,7 @@ export async function generateHeritageSiteFromSearch(
     return {
       success: false,
       isRealHeritageSite: false,
-      error: 'Gemini service is connecting. Please wait a moment or ensure GEMINI_API_KEY is configured.'
+      error: 'AI service is connecting. Please wait a moment or try again.'
     };
   }
 
@@ -616,7 +616,7 @@ STRICT CONSTRAINTS:
       const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
       parsed = JSON.parse(cleanJson);
     } catch (parseErr) {
-      console.warn('Failed to parse JSON response from Gemini. Attempting regex recovery.', parseErr);
+      console.warn('Failed to parse response format. Attempting regex recovery.', parseErr);
       parsed = extractJsonWithRegex(rawText);
     }
 
@@ -624,7 +624,7 @@ STRICT CONSTRAINTS:
       return {
         success: false,
         isRealHeritageSite: false,
-        error: 'Received invalid response structure from Gemini.',
+        error: 'Received invalid response structure from AI engine.',
       };
     }
 
@@ -726,7 +726,7 @@ STRICT CONSTRAINTS:
     return {
       success: false,
       isRealHeritageSite: false,
-      error: `Gemini Search failed: ${safeError}`,
+      error: `AI Search failed: ${safeError}`,
     };
   }
 }
@@ -846,7 +846,7 @@ export async function identifyHeritageImage(
       }
     }
   } catch (serverErr) {
-    console.warn('[GeminiService] Server /api/identify error, checking client key:', serverErr);
+    console.warn('[HeritageLens Vision] Server /api/identify error, checking client key:', serverErr);
   }
 
   const effectiveKey = (apiKey || getStoredGeminiKey()).trim();
@@ -911,7 +911,7 @@ CRITICAL INSTRUCTIONS:
       const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
       parsed = JSON.parse(cleanJson);
     } catch (parseErr) {
-      console.warn('Failed to parse strict JSON from Gemini response. Attempting regex recovery.');
+      console.warn('Failed to parse response format. Attempting regex recovery.');
       parsed = extractJsonWithRegex(rawText);
     }
 
@@ -989,7 +989,7 @@ CRITICAL INSTRUCTIONS:
 
   } catch (err: any) {
     const safeError = sanitizeErrorMessage(err);
-    console.warn('Gemini identification failed. Falling back to local demo resolution.');
+    console.warn('Recognition service unreachable. Falling back to local catalog resolution.');
 
     let errorCode: GeminiIdentificationResponse['errorCode'] = 'UNKNOWN_ERROR';
     if (safeError.includes('400') || safeError.includes('403') || safeError.includes('API_KEY_INVALID')) {

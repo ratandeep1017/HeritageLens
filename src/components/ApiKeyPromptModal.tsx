@@ -35,10 +35,10 @@ export const ApiKeyPromptModal: React.FC<ApiKeyPromptModalProps> = ({
           </div>
           <div>
             <span className="text-[10px] uppercase font-bold tracking-widest text-[#C05E42] block">
-              {currentLang === 'en' ? 'Gemini API Configuration' : 'जेमिनी एपीआई कॉन्फ़िगरेशन'}
+              {currentLang === 'en' ? 'AI Vision Access Configuration' : 'एआई विज़न कॉन्फ़िगरेशन'}
             </span>
             <h3 className="text-xl font-bold font-serif-heritage text-[#1A1A1A]">
-              {currentLang === 'en' ? 'Configure Key or Use Demo Mode?' : 'कुंजी सेट करें या डेमो मोड चुनें?'}
+              {currentLang === 'en' ? 'Configure Key or Use Verified Mode?' : 'कुंजी सेट करें या सत्यापित मोड चुनें?'}
             </h3>
           </div>
         </div>
@@ -47,16 +47,16 @@ export const ApiKeyPromptModal: React.FC<ApiKeyPromptModalProps> = ({
         <div className="flex flex-col gap-3 text-xs sm:text-sm text-[#5C544E] leading-relaxed">
           <p>
             {currentLang === 'en'
-              ? 'No Google Gemini API key was detected in your browser settings. You can either configure your key for live multimodal analysis or proceed instantly using our built-in Demo Mode.'
-              : 'ब्राउज़र सेटिंग्स में कोई जेमिनी एपीआई कुंजी नहीं मिली। आप लाइव विज़न विश्लेषण हेतु कुंजी दर्ज कर सकते हैं या अंतर्निहित डेमो मोड में जारी रख सकते हैं।'}
+              ? 'An AI Vision key connects your browser to live multimodal recognition across all Indian heritage monuments. You can also explore instantly using our built-in Verified Catalog.'
+              : 'एआई विज़न कुंजी सभी भारतीय स्मारकों के लाइव मल्टीमॉडल विश्लेषण को सक्षम करती है। आप हमारे अंतर्निहित प्रमाणित कैटलॉग में भी तुरंत अन्वेषण कर सकते हैं।'}
           </p>
 
           <div className="p-3.5 rounded-2xl bg-[#F3EEE7] border border-[#E8E2D9] flex items-start gap-2.5 text-xs text-[#2D2926]">
             <ShieldCheck className="w-4 h-4 text-[#2C4A3E] shrink-0 mt-0.5" />
             <span>
               {currentLang === 'en'
-                ? 'Demo Mode uses verified historical datasets for all 10 Delhi monuments and sample recognition profiles without consuming API quota.'
-                : 'डेमो मोड बिना किसी एपीआई कोटा के सभी 10 दिल्ली स्मारकों के प्रमाणित डेटासेट के साथ काम करता है।'}
+                ? 'Verified Mode uses comprehensive ASI & UNESCO records and high-resolution recognition profiles across Indian states without requiring an external key.'
+                : 'सत्यापित मोड बिना किसी अतिरिक्त कुंजी के विभिन्न राज्यों के प्रमाणित एएसआई और यूनेस्को रिकॉर्ड के साथ कार्य करता है।'}
             </span>
           </div>
         </div>

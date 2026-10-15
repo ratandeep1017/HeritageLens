@@ -63,11 +63,12 @@ export interface IdentificationResult {
   uploadedImageUrl?: string;
   analyzedAt: string;
 }
-
 export interface UserSettings {
-  geminiApiKey: string;
+  geminiApiKey?: string;
+  aiApiKey?: string;
+  apiKey?: string;
   preferredLanguage: 'en' | 'hi';
   speechRate: number;
   autoPlayAudio: boolean;
-  appMode?: 'gemini' | 'demo';
+  appMode?: 'gemini' | 'demo' | 'ai';
 }
