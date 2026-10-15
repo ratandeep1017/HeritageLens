@@ -234,8 +234,34 @@ export const VisualImagePickerModal: React.FC<VisualImagePickerModalProps> = ({
       console.warn('Backend image search failed, falling back to direct browser APIs:', err);
     }
 
-    // 2. Direct Wikipedia PageImages API
-    if (results.length < 8) {
+    // 2. Direct Wikipedia PageImages API (ONLY fallback if backend returned 0 results, and strictly filtered)
+    if (results.length === 0) {
+      function isRelevantTitle(title: string): boolean {
+        if (!title || !cleanQuery) return false;
+        const t = title.toLowerCase();
+        const q = cleanQuery.toLowerCase();
+        if (t.includes(q)) return true;
+
+        const commonWords = new Set(['and', 'the', 'for', 'with', 'near', 'from', 'best', 'shop', 'road', 'hotel', 'city', 'state', 'india', 'new']);
+        const words = q
+          .split(/\s+/)
+          .map((w) => w.replace(/[^a-z0-9]/gi, ''))
+          .filter((w) => w.length >= 3 && !commonWords.has(w));
+
+        if (words.length === 0) return true;
+        if (words.length === 1) return t.includes(words[0]);
+
+        const genericLandmarks = new Set(['temple', 'mandir', 'masjid', 'mosque', 'church', 'fort', 'palace', 'mahal', 'tomb', 'gate', 'park', 'garden', 'bazaar', 'market', 'tower', 'minar', 'museum', 'delhi', 'noida', 'agra', 'jaipur', 'mumbai', 'kolkata']);
+        const distinctiveWords = words.filter((w) => !genericLandmarks.has(w));
+        if (distinctiveWords.length > 0) {
+          const hasDistinctive = distinctiveWords.some((w) => t.includes(w));
+          if (!hasDistinctive) return false;
+        }
+
+        const matches = words.filter((w) => t.includes(w)).length;
+        return matches >= 2;
+      }
+
       const headers = { 'User-Agent': 'HeritageLens/1.0 (https://heritagelens.ai; contact@heritagelens.ai)' };
       try {
         const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(cleanQuery)}&gsrlimit=8&prop=pageimages|extracts&piprop=original|thumbnail&pithumbsize=800`;
@@ -246,6 +272,7 @@ export const VisualImagePickerModal: React.FC<VisualImagePickerModalProps> = ({
           for (const page of Object.values(pages) as any[]) {
             const imgUrl = page.original?.source || page.thumbnail?.source;
             if (imgUrl && typeof imgUrl === 'string' && imgUrl.startsWith('http') && !results.some(r => r.url === imgUrl)) {
+              if (!isRelevantTitle(page.title)) continue;
               results.push({
                 id: `wiki-${page.pageid || page.title}`,
                 url: imgUrl.replace(/\/\d+px-/, '/1600px-'),

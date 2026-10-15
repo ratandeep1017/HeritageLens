@@ -56,17 +56,24 @@ export const HeritageDataStore = {
           for (const s of json.data) {
             if (s && s.id) mergedMap.set(s.id.toLowerCase(), s);
           }
-          // 2. Preserve any local custom sites not yet on server and sync them
+          // 2. Preserve any local custom sites and locally updated photos
           if (Array.isArray(localList)) {
             for (const s of localList) {
-              if (s && s.id && !mergedMap.has(s.id.toLowerCase())) {
-                mergedMap.set(s.id.toLowerCase(), s);
-                // Background push to server
-                fetch(`${API_BASE}/api/sites`, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify(s)
-                }).catch(() => {});
+              if (s && s.id) {
+                const sId = s.id.toLowerCase();
+                const serverVer = mergedMap.get(sId);
+                if (!serverVer) {
+                  mergedMap.set(sId, s);
+                  // Background push to server
+                  fetch(`${API_BASE}/api/sites`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(s)
+                  }).catch(() => {});
+                } else if (s.imageUrl && s.imageUrl !== serverVer.imageUrl) {
+                  // Local user customized or updated this photo - preserve local photo!
+                  mergedMap.set(sId, { ...serverVer, imageUrl: s.imageUrl, imageAlt: s.imageAlt || serverVer.imageAlt });
+                }
               }
             }
           }
@@ -181,17 +188,27 @@ export const HeritageDataStore = {
     );
 
     if (existingIndex >= 0) {
-      const existing = sites[existingIndex];
-      // Monument is already listed in catalog! Merge to preserve canonical ID and avoid duplicates
+      // Monument is already listed in catalog! Merge to preserve canonical ID and update image/details
       const merged: HeritageSite = {
-        ...newSite,
         ...existing,
-        imageUrl: existing.imageUrl || newSite.imageUrl,
+        ...newSite,
+        imageUrl: (newSite.imageUrl && newSite.imageUrl.trim()) || existing.imageUrl,
+        imageAlt: newSite.imageAlt || existing.imageAlt,
         id: existing.id,
       };
       sites[existingIndex] = merged;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(sites));
       this.notifySubscribers();
+
+      // Persist update to global server database
+      try {
+        fetch(`${API_BASE}/api/sites/${encodeURIComponent(existing.id)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(merged),
+        }).catch(() => {});
+      } catch {}
+
       return { success: true, site: merged, isAlreadyListed: true };
     }
 

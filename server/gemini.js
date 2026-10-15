@@ -186,3 +186,96 @@ Format as a single JSON object with these exact keys:
     modelUsed: model,
   };
 }
+
+/**
+ * 3. Search for real photograph URLs of a place using Gemini + Google Search grounding.
+ *    This works reliably from any IP (including cloud datacenter IPs like Render/AWS)
+ *    because it uses Google's own search infrastructure through the Gemini API.
+ */
+export async function searchImagesWithGemini(query) {
+  const apiKey = getApiKey();
+  if (!apiKey) return [];
+
+  const ai = new GoogleGenAI({ apiKey });
+
+  const promptText = `Search for "${query}" and find 12 real, publicly accessible photographs.
+Return ONLY a valid JSON array of objects. Each object must have:
+- "title": descriptive title of the image (string)
+- "url": direct URL to the image file, must end in .jpg, .jpeg, .png, or .webp (string)
+- "source": the website name where the image is hosted (string)
+
+RULES:
+- Every URL must be a REAL, working direct link to an actual image file
+- Prefer travel photography blogs, tourism sites, Wikimedia Commons, Flickr, and stock photo sites
+- Focus on photos showing the actual place/monument/building itself
+- Do NOT invent or guess URLs - only include URLs you can verify from search results
+- Do NOT include placeholder or generic stock images
+- Return the JSON array directly without markdown formatting`;
+
+  // Try models that support Google Search grounding
+  const searchModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  
+  for (const model of searchModels) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: promptText,
+        config: {
+          tools: [{ googleSearch: {} }],
+        },
+      });
+
+      const rawText = response?.text || '';
+      
+      // Parse JSON array from response
+      const jsonMatch = rawText.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        try {
+          const items = JSON.parse(jsonMatch[0]);
+          if (Array.isArray(items) && items.length > 0) {
+            const validItems = items
+              .filter(item => item.url && typeof item.url === 'string' && item.url.startsWith('http') && /\.(jpg|jpeg|png|webp)($|\?)/i.test(item.url))
+              .map((item, idx) => ({
+                id: `gemini-${idx}-${Date.now()}`,
+                title: item.title || query,
+                url: item.url,
+                thumbUrl: item.url,
+                source: item.source ? `Google · ${item.source}` : 'Google Search',
+              }));
+            
+            if (validItems.length > 0) {
+              console.log(`[Gemini Image Search] Found ${validItems.length} images for "${query}" via ${model}`);
+              return validItems;
+            }
+          }
+        } catch (parseErr) {
+          console.warn(`[Gemini Image Search] JSON parse error for ${model}:`, parseErr.message);
+        }
+      }
+
+      // Fallback: extract only direct image URLs from grounding metadata
+      const candidate = response?.candidates?.[0];
+      const groundingChunks = candidate?.groundingMetadata?.groundingChunks;
+      if (groundingChunks && groundingChunks.length > 0) {
+        const webResults = groundingChunks
+          .filter(chunk => chunk.web?.uri && /\.(jpg|jpeg|png|webp)($|\?)/i.test(chunk.web.uri))
+          .map((chunk, idx) => ({
+            id: `grounding-${idx}-${Date.now()}`,
+            title: chunk.web.title || query,
+            url: chunk.web.uri,
+            thumbUrl: chunk.web.uri,
+            source: 'Google Search',
+          }));
+        if (webResults.length > 0) {
+          console.log(`[Gemini Image Search] Found ${webResults.length} grounding image results for "${query}"`);
+          return webResults;
+        }
+      }
+    } catch (err) {
+      console.warn(`[Gemini Image Search] Model ${model} failed:`, err.message?.slice(0, 100));
+    }
+  }
+
+  return [];
+}
+

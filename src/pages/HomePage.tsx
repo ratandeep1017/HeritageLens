@@ -119,7 +119,8 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
       const liveSite = heritageSites.find(
         (s) => s.id.toLowerCase() === aiSearchResult.site!.id.toLowerCase()
       );
-      if (liveSite && liveSite.imageUrl && liveSite.imageUrl !== aiSearchResult.site.imageUrl) {
+      // Only sync if aiSearchResult does not currently have an image
+      if (liveSite && liveSite.imageUrl && !aiSearchResult.site.imageUrl) {
         setAiSearchResult((prev) => {
           if (!prev || !prev.site) return prev;
           const updated = {

@@ -17,7 +17,7 @@ import {
   getInitialSeedData,
 } from './server/db.js';
 import { initCloudinary, uploadToCloudinary, isCloudinaryReady } from './server/cloudinary.js';
-import { identifyMonumentImage, generateSiteDossier, isGeminiAvailable } from './server/gemini.js';
+import { identifyMonumentImage, generateSiteDossier, isGeminiAvailable, searchImagesWithGemini } from './server/gemini.js';
 
 // Admin active session token store (memory cache)
 const activeAdminTokens = new Set();
@@ -262,7 +262,13 @@ app.post('/api/sites', async (req, res) => {
       allSites.find((s) => s.id.toLowerCase() === newSite.id.toLowerCase());
 
     const finalSite = matchedExisting
-      ? { ...newSite, ...matchedExisting, id: matchedExisting.id, imageUrl: matchedExisting.imageUrl || newSite.imageUrl }
+      ? {
+          ...matchedExisting,
+          ...newSite,
+          id: matchedExisting.id,
+          imageUrl: (newSite.imageUrl && newSite.imageUrl.trim()) || matchedExisting.imageUrl,
+          imageAlt: newSite.imageAlt || matchedExisting.imageAlt,
+        }
       : newSite;
 
     if (isDbConnected()) {
@@ -398,18 +404,57 @@ app.get('/api/image-search', async (req, res) => {
       .map((w) => w.replace(/[^a-z0-9]/gi, ''))
       .filter((w) => w.length > 2 && !['and', 'the', 'for', 'with', 'near', 'from', 'best', 'shop', 'road'].includes(w));
 
+    // Smart strict relevance filter:
+    // Requires distinctive keywords to match and strictly blocks generic single-word
+    // city/monument pages like "Delhi", "Noida", "Hanuman Temple" when searching "ISKCON Temple Noida".
     function isRelevant(title) {
-      if (!title || queryWords.length === 0) return true;
-      const lower = title.toLowerCase();
-      return queryWords.some((w) => lower.includes(w));
+      if (!title || !cleanQuery) return false;
+      const t = title.toLowerCase();
+      const q = cleanQuery.toLowerCase();
+      if (t.includes(q)) return true;
+
+      const commonWords = new Set(['and', 'the', 'for', 'with', 'near', 'from', 'best', 'shop', 'road', 'hotel', 'city', 'state', 'india', 'new']);
+      const words = q
+        .split(/\s+/)
+        .map((w) => w.replace(/[^a-z0-9]/gi, ''))
+        .filter((w) => w.length >= 3 && !commonWords.has(w));
+
+      if (words.length === 0) return true;
+      if (words.length === 1) return t.includes(words[0]);
+
+      const genericLandmarks = new Set(['temple', 'mandir', 'masjid', 'mosque', 'church', 'fort', 'palace', 'mahal', 'tomb', 'gate', 'park', 'garden', 'bazaar', 'market', 'tower', 'minar', 'museum', 'delhi', 'noida', 'agra', 'jaipur', 'mumbai', 'kolkata']);
+      const distinctiveWords = words.filter((w) => !genericLandmarks.has(w));
+      if (distinctiveWords.length > 0) {
+        const hasDistinctive = distinctiveWords.some((w) => t.includes(w));
+        if (!hasDistinctive) return false;
+      }
+
+      const matches = words.filter((w) => t.includes(w)).length;
+      return matches >= 2;
     }
 
     const results = [];
 
-    // 1. Official Google Custom Search JSON API (if configured in environment)
+    // 1. Gemini-Powered Google Search (works from ANY IP - cloud/datacenter included)
+    //    Uses the Gemini API's built-in Google Search grounding to find real image URLs.
+    //    This is the primary source on Render where direct scraping fails due to IP blocks.
+    if (isGeminiAvailable() && results.length < 8) {
+      try {
+        const geminiResults = await searchImagesWithGemini(cleanQuery);
+        for (const item of geminiResults) {
+          if (!results.some((r) => r.url === item.url)) {
+            results.push(item);
+          }
+        }
+      } catch (err) {
+        console.warn('[Image Search] Gemini Google Search error:', err.message);
+      }
+    }
+
+    // 2. Official Google Custom Search JSON API (if configured in environment)
     const googleApiKey = (process.env.GOOGLE_SEARCH_API_KEY || '').trim();
     const googleCx = (process.env.GOOGLE_SEARCH_CX || process.env.GOOGLE_CSE_ID || '').trim();
-    if (googleApiKey && googleCx) {
+    if (googleApiKey && googleCx && results.length < 15) {
       try {
         const gUrl = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(cleanQuery)}&searchType=image&key=${googleApiKey}&cx=${googleCx}&num=10`;
         const gRes = await fetch(gUrl);
@@ -435,7 +480,7 @@ app.get('/api/image-search', async (req, res) => {
       }
     }
 
-    // 2. High-Precision Web Search (Async Content Engine with Strict Relevance Filtering)
+    // 3. Web Image Search (Async Content Engine with Strict Relevance Filtering)
     if (results.length < 15) {
       try {
         const webUrl = `https://www.bing.com/images/async?q=${encodeURIComponent(cleanQuery)}&async=content&first=0&count=35`;
@@ -477,41 +522,89 @@ app.get('/api/image-search', async (req, res) => {
       }
     }
 
-    // 3. Wikimedia Commons (File namespace 6: high-res authentic heritage photos)
+    // 4. Flickr Heritage & Monument Feed (works reliably on any cloud IP without keys)
     if (results.length < 15) {
       try {
-        const wcUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(cleanQuery)}&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url|size|mime&format=json&origin=*`;
-        const wcRes = await fetch(wcUrl, {
-          headers: { 'User-Agent': 'HeritageLens/1.0 (https://heritagelens.ai; contact@heritagelens.ai)' },
-        });
-        if (wcRes.ok) {
-          const wcData = await wcRes.json();
-          const pages = Object.values(wcData.query?.pages || {});
-          for (const p of pages) {
-            const info = p.imageinfo?.[0];
-            const imgUrl = info?.url;
-            if (imgUrl && typeof imgUrl === 'string' && imgUrl.startsWith('http') && !results.some((r) => r.url === imgUrl)) {
-              const cleanTitle = (p.title || cleanQuery).replace(/^File:/i, '').replace(/\.[a-zA-Z0-9]+$/, '');
-              if (!isRelevant(cleanTitle) && results.length >= 5) continue;
-              results.push({
-                id: `commons-${p.pageid || p.title}`,
-                title: cleanTitle,
-                url: imgUrl,
-                thumbUrl: info.thumburl || imgUrl,
-                source: 'Wikimedia Commons',
-              });
+        const tagTokens = cleanQuery
+          .toLowerCase()
+          .replace(/[^a-z0-9\s]/g, '')
+          .split(/\s+/)
+          .filter((w) => w.length > 2 && !['and', 'the', 'for', 'with', 'near', 'from', 'best'].includes(w));
+        
+        const flickrTags = tagTokens.slice(0, 2).join(',');
+        if (flickrTags) {
+          const flickrUrl = `https://api.flickr.com/services/feeds/photos_public.gne?tags=${encodeURIComponent(flickrTags)}&format=json&nojsoncallback=1`;
+          const flickrRes = await fetch(flickrUrl, {
+            headers: { 'User-Agent': 'HeritageLens/1.0 (https://heritagelens.ai; contact@heritagelens.ai)' }
+          });
+          if (flickrRes.ok) {
+            const flickrData = await flickrRes.json();
+            for (const item of flickrData.items || []) {
+              if (results.length >= 15) break;
+              const title = item.title || cleanQuery;
+              if (!isRelevant(title)) continue;
+              const thumb = item.media?.m;
+              const fullImg = thumb?.replace(/_m\.(jpg|jpeg|png)$/, '_b.$1') || thumb;
+              if (fullImg && !results.some((r) => r.url === fullImg)) {
+                results.push({
+                  id: `flickr-${results.length}-${Date.now()}`,
+                  title,
+                  url: fullImg,
+                  thumbUrl: thumb || fullImg,
+                  source: 'Flickr · Heritage Photo',
+                });
+              }
             }
           }
         }
       } catch (err) {
-        console.warn('[Image Search] Wikimedia Commons error:', err.message);
+        console.warn('[Image Search] Flickr feed error:', err.message);
       }
     }
 
-    // 4. Wikipedia PageImages API
+    // 5. Wikimedia Commons (File namespace 6: high-res authentic heritage photos)
+    if (results.length < 15) {
+      const wcVariations = [
+        cleanQuery,
+        cleanQuery.replace(/\b(Delhi|Noida|India|NCR|Gurugram|New)\b/gi, '').trim(),
+      ].filter((v, i, a) => v.length > 3 && a.indexOf(v) === i);
+
+      for (const wcQuery of wcVariations) {
+        if (results.length >= 15) break;
+        try {
+          const wcUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(wcQuery)}&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url|size|mime&format=json&origin=*`;
+          const wcRes = await fetch(wcUrl, {
+            headers: { 'User-Agent': 'HeritageLens/1.0 (https://heritagelens.ai; contact@heritagelens.ai)' },
+          });
+          if (wcRes.ok) {
+            const wcData = await wcRes.json();
+            const pages = Object.values(wcData.query?.pages || {});
+            for (const p of pages) {
+              const info = p.imageinfo?.[0];
+              const imgUrl = info?.url;
+              if (imgUrl && typeof imgUrl === 'string' && imgUrl.startsWith('http') && !results.some((r) => r.url === imgUrl)) {
+                const cleanTitle = (p.title || cleanQuery).replace(/^File:/i, '').replace(/\.[a-zA-Z0-9]+$/, '');
+                if (!isRelevant(cleanTitle)) continue;
+                results.push({
+                  id: `commons-${p.pageid || p.title}`,
+                  title: cleanTitle,
+                  url: imgUrl,
+                  thumbUrl: info.thumburl || imgUrl,
+                  source: 'Wikimedia Commons',
+                });
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('[Image Search] Wikimedia Commons error:', err.message);
+        }
+      }
+    }
+
+    // 6. Wikipedia PageImages API (with strict relevance check - no generic city pages)
     if (results.length < 15) {
       try {
-        const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(cleanQuery)}&gsrlimit=6&prop=pageimages&piprop=original|thumbnail&pithumbsize=800`;
+        const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(cleanQuery)}&gsrlimit=8&prop=pageimages&piprop=original|thumbnail&pithumbsize=800`;
         const wikiRes = await fetch(wikiUrl, {
           headers: { 'User-Agent': 'HeritageLens/1.0 (https://heritagelens.ai; contact@heritagelens.ai)' },
         });
@@ -521,7 +614,7 @@ app.get('/api/image-search', async (req, res) => {
           for (const p of pages) {
             const img = p.original?.source || p.thumbnail?.source;
             if (img && typeof img === 'string' && img.startsWith('http') && !results.some((r) => r.url === img)) {
-              if (!isRelevant(p.title) && results.length >= 5) continue;
+              if (!isRelevant(p.title)) continue;
               results.push({
                 id: `wiki-${p.pageid || p.title}`,
                 title: p.title || cleanQuery,
@@ -537,7 +630,7 @@ app.get('/api/image-search', async (req, res) => {
       }
     }
 
-    // 5. Openverse Cultural Images API
+    // 7. Openverse Cultural Images API
     if (results.length < 15) {
       try {
         const ovUrl = `https://api.openverse.engineering/v1/images/?q=${encodeURIComponent(cleanQuery)}&page_size=8`;
@@ -546,7 +639,7 @@ app.get('/api/image-search', async (req, res) => {
           const ovData = await ovRes.json();
           for (const item of ovData.results || []) {
             if (item.url && item.url.startsWith('http') && !results.some((r) => r.url === item.url)) {
-              if (!isRelevant(item.title) && results.length >= 5) continue;
+              if (!isRelevant(item.title)) continue;
               results.push({
                 id: `openverse-${item.id}`,
                 title: item.title || cleanQuery,
