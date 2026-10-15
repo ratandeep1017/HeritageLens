@@ -314,7 +314,14 @@ export const DELHI_HERITAGE_SITES: HeritageSite[] = [
     imageUrl: 'https://res.cloudinary.com/purnesh/image/upload/w_1000,f_auto,q_auto:eco,c_limit/sgs2-1.jpg',
     imageAlt: 'Gurudwara Sis Ganj Sahib historic shrine facade in Chandni Chowk Old Delhi',
     sourceNote: 'Delhi Sikh Gurdwara Management Committee (DSGMC) & Shiromani Gurdwara Parbandhak Committee',
-    tags: ['Sikh Heritage', 'Martyrdom', 'Chandni Chowk', 'Old Delhi']
+    tags: ['Sikh Heritage', 'Martyrdom', 'Chandni Chowk', 'Old Delhi'],
+    latitude: 28.655988,
+    longitude: 77.232561,
+    coordinates: { lat: 28.655988, lng: 77.232561 },
+    city: 'Old Delhi',
+    hindiCity: 'पुरानी दिल्ली',
+    state: 'Delhi',
+    hindiState: 'दिल्ली'
   },
   {
     id: 'jama-masjid',

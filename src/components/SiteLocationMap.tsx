@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapPin, Navigation, ExternalLink, AlertCircle, Compass, Layers } from 'lucide-react';
-import { resolveSiteCoordinates } from '../utils/geoCoordinates';
+import { resolveSiteCoordinates, fetchLiveCoordinates } from '../utils/geoCoordinates';
 
 interface SiteLocationMapProps {
   latitude?: number;
@@ -27,30 +27,55 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
 }) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
 
   const [mapMode, setMapMode] = useState<MapMode>('streets');
   const [mapError, setMapError] = useState<boolean>(false);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
+  const [liveCoords, setLiveCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   // Auto-resolve coordinates from props or geographic monument/city registry across India
-  const resolvedCoords = (typeof latitude === 'number' && typeof longitude === 'number' && !isNaN(latitude) && !isNaN(longitude) && latitude !== 0 && longitude !== 0)
+  const initialResolved = (typeof latitude === 'number' && typeof longitude === 'number' && !isNaN(latitude) && !isNaN(longitude) && latitude !== 0 && longitude !== 0)
     ? { lat: latitude, lng: longitude }
     : resolveSiteCoordinates({ name: siteName, state, latitude, longitude });
 
-  const effectiveLat = resolvedCoords?.lat;
-  const effectiveLng = resolvedCoords?.lng;
+  // Use live-geocoded coordinates if resolved, otherwise static/registry coordinates
+  const effectiveLat = liveCoords?.lat ?? initialResolved?.lat;
+  const effectiveLng = liveCoords?.lng ?? initialResolved?.lng;
   const hasValidCoordinates = typeof effectiveLat === 'number' && typeof effectiveLng === 'number' && effectiveLat !== 0;
 
-  // External directions URL to Google Maps
-  const externalMapUrl = hasValidCoordinates
-    ? `https://www.google.com/maps/dir/?api=1&destination=${effectiveLat},${effectiveLng}`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${siteName} ${state || ''} India`)}`;
+  // Search directly on live Google Maps / Geocoding APIs
+  useEffect(() => {
+    let isSubscribed = true;
+    fetchLiveCoordinates(siteName, state, areaName).then((res) => {
+      if (isSubscribed && res && (res.lat !== initialResolved?.lat || res.lng !== initialResolved?.lng)) {
+        setLiveCoords(res);
+      }
+    });
+    return () => {
+      isSubscribed = false;
+    };
+  }, [siteName, state, areaName]);
 
-  // Google Maps native embed URL (100% free, no credit card or API key required)
-  const embedMapUrl = hasValidCoordinates
-    ? `https://maps.google.com/maps?q=${effectiveLat},${effectiveLng}&hl=${currentLang === 'hi' ? 'hi' : 'en'}&z=15&output=embed`
-    : `https://maps.google.com/maps?q=${encodeURIComponent(`${siteName} ${state || ''} India`)}&hl=${currentLang === 'hi' ? 'hi' : 'en'}&z=15&output=embed`;
+  // When live coordinates are fetched, smoothly pan the map and update the marker
+  useEffect(() => {
+    if (mapInstanceRef.current && liveCoords) {
+      mapInstanceRef.current.setView([liveCoords.lat, liveCoords.lng], 16, { animate: true });
+      if (markerRef.current) {
+        markerRef.current.setLatLng([liveCoords.lat, liveCoords.lng]);
+      }
+    }
+  }, [liveCoords]);
+
+  // Clean query for direct Google Maps searching
+  const directMapSearchQuery = `${siteName}, ${areaName ? areaName.split('(')[0].trim() : ''}, ${state || 'Delhi'}, India`.replace(/,\s*,/g, ',').trim();
+
+  // External directions / place URL directly on Google Maps
+  const externalMapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(directMapSearchQuery)}`;
+
+  // Google Maps native embed URL directly searching the place name (100% free, no credit card or API key required)
+  const embedMapUrl = `https://maps.google.com/maps?q=${encodeURIComponent(directMapSearchQuery)}&hl=${currentLang === 'hi' ? 'hi' : 'en'}&z=16&output=embed`;
 
   // Helper to create appropriate Google tile layer
   const createTileLayer = (mode: 'streets' | 'satellite') => {
@@ -154,6 +179,7 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
       });
 
       const marker = L.marker([effectiveLat!, effectiveLng!], { icon: customIcon }).addTo(map);
+      markerRef.current = marker;
 
       // Popup with verified site details
       const popupHtml = `

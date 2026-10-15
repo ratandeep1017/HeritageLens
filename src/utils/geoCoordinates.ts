@@ -17,6 +17,10 @@ export const MONUMENT_COORDINATE_REGISTRY: Record<string, LatLng> = {
   'lotus-temple': { lat: 28.5535, lng: 77.2588 },
   'india-gate': { lat: 28.6129, lng: 77.2295 },
   'bangla-sahib': { lat: 28.6264, lng: 77.2091 },
+  'gurudwara-bangla-sahib': { lat: 28.6264, lng: 77.2091 },
+  'sis-ganj-sahib': { lat: 28.655988, lng: 77.232561 },
+  'gurudwara-sis-ganj-sahib': { lat: 28.655988, lng: 77.232561 },
+  'sis-ganj': { lat: 28.655988, lng: 77.232561 },
   'jama-masjid': { lat: 28.6507, lng: 77.2334 },
   'hauz-khas-complex': { lat: 28.5535, lng: 77.1944 },
   'jantar-mantar': { lat: 28.6271, lng: 77.2166 },
@@ -215,4 +219,77 @@ export function inferStateFromText(text: string): { state: string; hindiState: s
   }
 
   return { state: 'Delhi', hindiState: 'दिल्ली' };
+}
+
+/**
+ * Dynamically queries live geocoding APIs (Server Proxy -> Nominatim -> Wikipedia)
+ * to resolve exact, real-time GPS coordinates for ANY monument in India or worldwide.
+ */
+export async function fetchLiveCoordinates(
+  siteName: string,
+  state?: string,
+  areaName?: string
+): Promise<LatLng | null> {
+  const cleanName = siteName.replace(/\(.*?\)/g, '').trim();
+  const query = `${cleanName} ${areaName ? areaName.split('(')[0] : ''} ${state || ''} India`.trim();
+
+  // 1. First try server-side geocoding endpoint
+  try {
+    const srvRes = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
+    if (srvRes.ok) {
+      const srvData = await srvRes.json();
+      if (srvData.success && typeof srvData.lat === 'number' && typeof srvData.lng === 'number') {
+        return { lat: srvData.lat, lng: srvData.lng };
+      }
+    }
+  } catch (e) {
+    // Continue to direct browser fallbacks
+  }
+
+  // 2. Direct OpenStreetMap Nominatim geocoding (client-side)
+  try {
+    const nomUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
+    const nomRes = await fetch(nomUrl, {
+      headers: { 'User-Agent': 'HeritageLens/1.0 (contact@heritagelens.ai)' }
+    });
+    if (nomRes.ok) {
+      const nomData = await nomRes.json();
+      if (Array.isArray(nomData) && nomData.length > 0) {
+        const lat = parseFloat(nomData[0].lat);
+        const lng = parseFloat(nomData[0].lon);
+        if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+          return { lat, lng };
+        }
+      }
+    }
+  } catch (e) {
+    // Continue to Wikipedia fallback
+  }
+
+  // 3. Direct Wikipedia Geosearch API (CORS origin=*)
+  try {
+    const wikiTitle = cleanName.replace(/\s+/g, '_');
+    const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=coordinates&titles=${encodeURIComponent(wikiTitle)}&format=json&origin=*`;
+    const wikiRes = await fetch(wikiUrl);
+    if (wikiRes.ok) {
+      const wikiData = await wikiRes.json();
+      const pages = wikiData?.query?.pages;
+      if (pages) {
+        for (const pid in pages) {
+          const coords = pages[pid]?.coordinates;
+          if (Array.isArray(coords) && coords.length > 0) {
+            const lat = coords[0].lat;
+            const lng = coords[0].lon;
+            if (typeof lat === 'number' && typeof lng === 'number') {
+              return { lat, lng };
+            }
+          }
+        }
+      }
+    }
+  } catch (e) {
+    // Safe fallback
+  }
+
+  return null;
 }

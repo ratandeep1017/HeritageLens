@@ -771,7 +771,78 @@ app.get('/api/image-search', async (req, res) => {
   }
 });
 
-// 10. POST /api/identify (Server-side Gemini Visual Recognition)
+// 9.5 GET /api/geocode - Live Geolocation Resolver (Nominatim & Wikipedia & Google Maps)
+app.get('/api/geocode', async (req, res) => {
+  try {
+    const rawQuery = (req.query.q || '').trim();
+    if (!rawQuery) {
+      return res.status(400).json({ success: false, error: 'Query parameter q is required' });
+    }
+
+    const cleanQuery = rawQuery.replace(/\(.*?\)/g, '').trim();
+
+    // 1. Try OpenStreetMap Nominatim
+    try {
+      const nomUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cleanQuery + ' India')}&format=json&limit=1`;
+      const nomRes = await fetch(nomUrl, {
+        headers: { 'User-Agent': 'HeritageLens/1.0 (contact@heritagelens.ai)' }
+      });
+      if (nomRes.ok) {
+        const nomData = await nomRes.json();
+        if (Array.isArray(nomData) && nomData.length > 0) {
+          const lat = parseFloat(nomData[0].lat);
+          const lng = parseFloat(nomData[0].lon);
+          if (!isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
+            return res.json({
+              success: true,
+              source: 'Nominatim',
+              lat,
+              lng,
+              displayName: nomData[0].display_name
+            });
+          }
+        }
+      }
+    } catch (e) {
+      // Continue to Wikipedia fallback
+    }
+
+    // 2. Try Wikipedia Geosearch
+    try {
+      const wikiTitle = cleanQuery.replace(/\s+/g, '_');
+      const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&prop=coordinates&titles=${encodeURIComponent(wikiTitle)}&format=json&origin=*`;
+      const wikiRes = await fetch(wikiUrl);
+      if (wikiRes.ok) {
+        const wikiData = await wikiRes.json();
+        const pages = wikiData?.query?.pages;
+        if (pages) {
+          for (const pid in pages) {
+            const coords = pages[pid]?.coordinates;
+            if (Array.isArray(coords) && coords.length > 0) {
+              const lat = coords[0].lat;
+              const lng = coords[0].lon;
+              if (typeof lat === 'number' && typeof lng === 'number') {
+                return res.json({
+                  success: true,
+                  source: 'Wikipedia',
+                  lat,
+                  lng,
+                  displayName: pages[pid].title
+                });
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {}
+
+    return res.json({ success: false, error: 'Location coordinates not found' });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 10. POST /api/identify (Server-side Visual Recognition)
 app.post('/api/identify', async (req, res) => {
   try {
     const { image, lang } = req.body;
@@ -782,7 +853,7 @@ app.post('/api/identify', async (req, res) => {
     if (!isGeminiAvailable()) {
       return res.status(503).json({
         success: false,
-        error: 'Gemini AI is not configured on the server. Please set GEMINI_API_KEY in Render.',
+        error: 'AI Vision is not configured on the server environment.',
       });
     }
 

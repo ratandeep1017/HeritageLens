@@ -425,7 +425,17 @@
       "Martyrdom",
       "Chandni Chowk",
       "Old Delhi"
-    ]
+    ],
+    "latitude": 28.655988,
+    "longitude": 77.232561,
+    "coordinates": {
+      "lat": 28.655988,
+      "lng": 77.232561
+    },
+    "city": "Old Delhi",
+    "hindiCity": "पुरानी दिल्ली",
+    "state": "Delhi",
+    "hindiState": "दिल्ली"
   },
   {
     "id": "jama-masjid",
