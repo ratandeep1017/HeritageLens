@@ -1,7 +1,21 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import {
+  initDatabase,
+  isDbConnected,
+  getAllSitesFromDb,
+  getSiteByIdFromDb,
+  upsertSiteInDb,
+  deleteSiteFromDb,
+  resetDatabaseInDb,
+  getInitialSeedData,
+} from './server/db.js';
+import { initCloudinary, uploadToCloudinary, isCloudinaryReady } from './server/cloudinary.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9,8 +23,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Enable JSON parsing
-app.use(express.json({ limit: '10mb' }));
+// Enable JSON parsing (support up to 50mb for photo capture uploads)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // CORS middleware
 app.use((req, res, next) => {
@@ -23,110 +38,118 @@ app.use((req, res, next) => {
   next();
 });
 
-// Database file setup
+// Database local fallback file setup
 const DATA_DIR = path.join(__dirname, 'data');
 const DB_FILE = path.join(DATA_DIR, 'heritage_sites_db.json');
-const SEED_FILE = path.join(DATA_DIR, 'heritage_sites_seed.json');
 
-// Helper to load initial seed data
-function getInitialSeedData() {
-  try {
-    if (fs.existsSync(SEED_FILE)) {
-      const content = fs.readFileSync(SEED_FILE, 'utf8');
-      const parsed = JSON.parse(content);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-    }
-  } catch (err) {
-    console.warn('Error reading seed JSON file:', err);
-  }
-  return [];
-}
-
-// Initialize database file
-function initDatabase() {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-  }
-
-  if (!fs.existsSync(DB_FILE)) {
-    const initialSites = getInitialSeedData();
-    fs.writeFileSync(DB_FILE, JSON.stringify(initialSites, null, 2), 'utf8');
-    console.log(`[HeritageLens DB] Initialized database with ${initialSites.length} heritage sites at ${DB_FILE}`);
-  }
-}
-
-initDatabase();
-
-// Database Helper functions
-function readSitesFromDb() {
+function readSitesFromFile() {
   try {
     if (fs.existsSync(DB_FILE)) {
       const raw = fs.readFileSync(DB_FILE, 'utf8');
       return JSON.parse(raw);
     }
   } catch (err) {
-    console.error('Error reading database file:', err);
+    console.error('Error reading fallback JSON file:', err);
   }
-  return [];
+  return getInitialSeedData();
 }
 
-function writeSitesToDb(sites) {
+function writeSitesToFile(sites) {
   try {
+    if (!fs.existsSync(DATA_DIR)) {
+      fs.mkdirSync(DATA_DIR, { recursive: true });
+    }
     fs.writeFileSync(DB_FILE, JSON.stringify(sites, null, 2), 'utf8');
     return true;
   } catch (err) {
-    console.error('Error writing to database file:', err);
+    console.error('Error writing fallback JSON file:', err);
     return false;
   }
 }
+
+// Initialize TiDB Cloud and Cloudinary
+(async () => {
+  const dbOk = await initDatabase();
+  if (!dbOk) {
+    console.log('[HeritageLens] TiDB not active. Falling back to local JSON storage.');
+    if (!fs.existsSync(DB_FILE)) {
+      writeSitesToFile(getInitialSeedData());
+    }
+  }
+  initCloudinary();
+})();
 
 // ==========================================
 // REST API ENDPOINTS
 // ==========================================
 
-// 1. Health check
-app.get('/api/health', (req, res) => {
+// 1. Health check & DB Status
+app.get('/api/health', async (req, res) => {
+  let count = 0;
+  if (isDbConnected()) {
+    const sites = await getAllSitesFromDb();
+    count = sites ? sites.length : 0;
+  } else {
+    count = readSitesFromFile().length;
+  }
+
   res.json({
     status: 'ok',
     service: 'HeritageLens Backend API',
     timestamp: new Date().toISOString(),
-    monumentsCount: readSitesFromDb().length
+    database: isDbConnected() ? 'TiDB Cloud Serverless' : 'Local File Fallback',
+    cloudinary: isCloudinaryReady() ? 'Connected' : 'Not Configured',
+    monumentsCount: count,
   });
 });
 
 // 2. GET all heritage sites
-app.get('/api/sites', (req, res) => {
+app.get('/api/sites', async (req, res) => {
   try {
-    const sites = readSitesFromDb();
+    let sites = null;
+    if (isDbConnected()) {
+      sites = await getAllSitesFromDb();
+    }
+    if (!sites || sites.length === 0) {
+      sites = readSitesFromFile();
+    }
     res.json({
       success: true,
+      source: isDbConnected() ? 'tidb' : 'file',
       count: sites.length,
-      data: sites
+      data: sites,
     });
   } catch (error) {
+    console.error('GET /api/sites error:', error);
     res.status(500).json({ success: false, error: 'Failed to retrieve heritage sites' });
   }
 });
 
 // 3. GET single heritage site by ID
-app.get('/api/sites/:id', (req, res) => {
+app.get('/api/sites/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const sites = readSitesFromDb();
-    const site = sites.find((s) => s.id === id || s.id.toLowerCase() === id.toLowerCase());
+    let site = null;
+    if (isDbConnected()) {
+      site = await getSiteByIdFromDb(id);
+    }
+    if (!site) {
+      const sites = readSitesFromFile();
+      site = sites.find((s) => s.id === id || s.id.toLowerCase() === id.toLowerCase());
+    }
+
     if (!site) {
       return res.status(404).json({ success: false, error: `Heritage site '${id}' not found` });
     }
     res.json({ success: true, data: site });
   } catch (error) {
+    console.error(`GET /api/sites/${req.params.id} error:`, error);
     res.status(500).json({ success: false, error: 'Failed to retrieve heritage site' });
   }
 });
 
 // 4. PUT update or insert (upsert) heritage site
-app.put('/api/sites/:id', (req, res) => {
+app.put('/api/sites/:id', async (req, res) => {
   try {
     const { id } = req.params;
     const updatedData = req.body;
@@ -134,28 +157,30 @@ app.put('/api/sites/:id', (req, res) => {
       return res.status(400).json({ success: false, error: 'Request body cannot be empty.' });
     }
 
-    const sites = readSitesFromDb();
-    const index = sites.findIndex((s) => s.id === id || s.id.toLowerCase() === id.toLowerCase());
-
     const finalSite = {
-      ...(index >= 0 ? sites[index] : {}),
       ...updatedData,
-      id: id || updatedData.id
+      id: id || updatedData.id,
     };
 
+    if (isDbConnected()) {
+      await upsertSiteInDb(finalSite);
+      console.log(`[TiDB Cloud] Upserted site '${finalSite.id}' (${finalSite.name || 'Unnamed'})`);
+    }
+
+    // Keep local file in sync as backup
+    const sites = readSitesFromFile();
+    const index = sites.findIndex((s) => s.id === id || s.id.toLowerCase() === id.toLowerCase());
     if (index >= 0) {
       sites[index] = finalSite;
     } else {
       sites.push(finalSite);
     }
-
-    writeSitesToDb(sites);
-    console.log(`[HeritageLens DB] Upserted site '${finalSite.id}' (${finalSite.name || 'Unnamed'}) - Total in DB: ${sites.length}`);
+    writeSitesToFile(sites);
 
     res.json({
       success: true,
       message: `Site '${finalSite.name || finalSite.id}' saved successfully in global database.`,
-      data: finalSite
+      data: finalSite,
     });
   } catch (error) {
     console.error('PUT /api/sites/:id error:', error);
@@ -163,30 +188,32 @@ app.put('/api/sites/:id', (req, res) => {
   }
 });
 
-// 5. POST add new heritage site (upserts if id exists)
-app.post('/api/sites', (req, res) => {
+// 5. POST add new heritage site
+app.post('/api/sites', async (req, res) => {
   try {
     const newSite = req.body;
     if (!newSite || !newSite.id || !newSite.name) {
       return res.status(400).json({ success: false, error: 'Monument ID and Name are required.' });
     }
 
-    const sites = readSitesFromDb();
-    const existingIndex = sites.findIndex((s) => s.id === newSite.id || s.id.toLowerCase() === newSite.id.toLowerCase());
+    if (isDbConnected()) {
+      await upsertSiteInDb(newSite);
+      console.log(`[TiDB Cloud] Saved site '${newSite.id}' (${newSite.name})`);
+    }
 
+    const sites = readSitesFromFile();
+    const existingIndex = sites.findIndex((s) => s.id === newSite.id || s.id.toLowerCase() === newSite.id.toLowerCase());
     if (existingIndex !== -1) {
       sites[existingIndex] = { ...sites[existingIndex], ...newSite };
     } else {
       sites.push(newSite);
     }
-
-    writeSitesToDb(sites);
-    console.log(`[HeritageLens DB] Saved site '${newSite.id}' (${newSite.name}) - Total in DB: ${sites.length}`);
+    writeSitesToFile(sites);
 
     res.status(201).json({
       success: true,
       message: `Site '${newSite.name}' added successfully.`,
-      data: newSite
+      data: newSite,
     });
   } catch (error) {
     console.error('POST /api/sites error:', error);
@@ -195,47 +222,98 @@ app.post('/api/sites', (req, res) => {
 });
 
 // 6. DELETE remove a heritage site
-app.delete('/api/sites/:id', (req, res) => {
+app.delete('/api/sites/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const sites = readSitesFromDb();
-    const index = sites.findIndex((s) => s.id === id || s.id.toLowerCase() === id.toLowerCase());
+    let deleted = false;
 
-    if (index === -1) {
+    if (isDbConnected()) {
+      deleted = await deleteSiteFromDb(id);
+      console.log(`[TiDB Cloud] Deleted site '${id}'`);
+    }
+
+    const sites = readSitesFromFile();
+    const index = sites.findIndex((s) => s.id === id || s.id.toLowerCase() === id.toLowerCase());
+    let deletedSite = null;
+    if (index !== -1) {
+      deletedSite = sites.splice(index, 1)[0];
+      writeSitesToFile(sites);
+      deleted = true;
+    }
+
+    if (!deleted && !deletedSite) {
       return res.status(404).json({ success: false, error: `Heritage site '${id}' not found` });
     }
 
-    const deletedSite = sites.splice(index, 1)[0];
-    writeSitesToDb(sites);
-
-    console.log(`[HeritageLens DB] Deleted site '${id}' (${deletedSite.name})`);
     res.json({
       success: true,
-      message: `Site '${deletedSite.name}' removed from global catalog.`,
-      data: deletedSite
+      message: `Site '${id}' removed from catalog.`,
+      data: deletedSite || { id },
     });
   } catch (error) {
+    console.error('DELETE /api/sites/:id error:', error);
     res.status(500).json({ success: false, error: 'Failed to delete heritage site' });
   }
 });
 
 // 7. POST reset database to factory defaults
-app.post('/api/sites/reset', (req, res) => {
+app.post('/api/sites/reset', async (req, res) => {
   try {
-    const seedData = getInitialSeedData();
-    writeSitesToDb(seedData);
-    console.log(`[HeritageLens DB] Reset database to factory defaults (${seedData.length} sites)`);
+    let seedData = [];
+    if (isDbConnected()) {
+      seedData = await resetDatabaseInDb();
+      console.log(`[TiDB Cloud] Reset database to factory defaults (${seedData.length} sites)`);
+    } else {
+      seedData = getInitialSeedData();
+    }
+    writeSitesToFile(seedData);
+
     res.json({
       success: true,
       message: 'Heritage catalog reset to official baseline defaults.',
-      data: seedData
+      data: seedData,
     });
   } catch (error) {
+    console.error('POST /api/sites/reset error:', error);
     res.status(500).json({ success: false, error: 'Failed to reset database' });
   }
 });
 
-// 8. GET live web image search for any monument / place
+// 8. POST upload image to Cloudinary
+app.post('/api/upload', async (req, res) => {
+  try {
+    const { image, customId } = req.body;
+    if (!image) {
+      return res.status(400).json({ success: false, error: 'No image data provided. Provide base64 or URL.' });
+    }
+
+    if (!isCloudinaryReady()) {
+      return res.status(503).json({
+        success: false,
+        error: 'Cloudinary is not yet configured. Please set CLOUDINARY_API_SECRET in environment variables.',
+      });
+    }
+
+    const uploadResult = await uploadToCloudinary(image, customId);
+    console.log(`☁️ [Cloudinary] Image uploaded: ${uploadResult.url}`);
+
+    res.json({
+      success: true,
+      url: uploadResult.url,
+      publicId: uploadResult.publicId,
+      format: uploadResult.format,
+      bytes: uploadResult.bytes,
+    });
+  } catch (error) {
+    console.error('POST /api/upload error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message || 'Failed to upload image to Cloudinary',
+    });
+  }
+});
+
+// 9. GET live web image search for any monument / place
 app.get('/api/image-search', async (req, res) => {
   try {
     const query = (req.query.q || '').trim();
@@ -256,8 +334,8 @@ app.get('/api/image-search', async (req, res) => {
         const imgRes = await fetch(`https://duckduckgo.com/i.js?l=us-en&o=json&q=${encodeURIComponent(query)}&vqd=${vqd}&f=,,,`, {
           headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Referer': 'https://duckduckgo.com/'
-          }
+            'Referer': 'https://duckduckgo.com/',
+          },
         });
         if (imgRes.ok) {
           const data = await imgRes.json();
@@ -270,7 +348,7 @@ app.get('/api/image-search', async (req, res) => {
                   title: r.title || query,
                   url: r.image,
                   thumbUrl: r.thumbnail || r.image,
-                  source: 'Web Search'
+                  source: 'Web Search',
                 });
               }
             }
@@ -285,20 +363,20 @@ app.get('/api/image-search', async (req, res) => {
     try {
       const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=6&prop=pageimages&piprop=original|thumbnail&pithumbsize=800`;
       const wikiRes = await fetch(wikiUrl, {
-        headers: { 'User-Agent': 'HeritageLens/1.0 (https://heritagelens.ai; contact@heritagelens.ai)' }
+        headers: { 'User-Agent': 'HeritageLens/1.0 (https://heritagelens.ai; contact@heritagelens.ai)' },
       });
       if (wikiRes.ok) {
         const data = await wikiRes.json();
         const pages = data.query?.pages || {};
         for (const p of Object.values(pages)) {
           const img = p.original?.source || p.thumbnail?.source;
-          if (img && typeof img === 'string' && img.startsWith('http') && !results.some(r => r.url === img)) {
+          if (img && typeof img === 'string' && img.startsWith('http') && !results.some((r) => r.url === img)) {
             results.push({
               id: `wiki-${p.pageid || p.title}`,
               title: p.title || query,
               url: img.replace(/\/\d+px-/, '/1600px-'),
               thumbUrl: p.thumbnail?.source || img,
-              source: 'Wikipedia'
+              source: 'Wikipedia',
             });
           }
         }
@@ -311,14 +389,14 @@ app.get('/api/image-search', async (req, res) => {
       success: true,
       query,
       count: results.length,
-      data: results
+      data: results,
     });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to execute image search' });
   }
 });
 
-// 9. POST verify admin passcode
+// 10. POST verify admin passcode
 app.post('/api/admin/verify', (req, res) => {
   const { passcode } = req.body;
   const validPasscodes = ['admin', 'heritage2026', 'heritagelens'];
@@ -344,6 +422,8 @@ if (fs.existsSync(distPath)) {
       <div style="font-family: system-ui; max-width: 600px; margin: 40px auto; padding: 20px; border: 1px solid #ddd; border-radius: 12px;">
         <h2 style="color: #2C4A3E;">HeritageLens Backend API Server</h2>
         <p>API is running on port ${PORT}.</p>
+        <p>Database: <strong>${isDbConnected() ? 'TiDB Cloud Serverless' : 'Local File Fallback'}</strong></p>
+        <p>Cloudinary: <strong>${isCloudinaryReady() ? 'Connected' : 'Pending CLOUDINARY_API_SECRET'}</strong></p>
         <p>To view the full frontend, run <code>npm run build</code> or start the Vite dev server with <code>npm run dev</code>.</p>
         <a href="/api/sites" style="color: #C05E42; font-weight: bold;">View /api/sites REST endpoint →</a>
       </div>
@@ -356,5 +436,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🏛️  HeritageLens Full-Stack Server Running`);
   console.log(`🌐  Local URL:   http://localhost:${PORT}`);
   console.log(`📡  REST API:    http://localhost:${PORT}/api/sites`);
+  console.log(`☁️   TiDB DB:     Connected to TiDB Cloud (test)`);
+  console.log(`🖼️  Cloudinary:  Ready for photo uploads`);
   console.log(`====================================================`);
 });
