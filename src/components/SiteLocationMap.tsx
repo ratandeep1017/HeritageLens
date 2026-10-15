@@ -59,19 +59,19 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
 
       mapInstanceRef.current = map;
 
-      // Add OpenStreetMap Tile Layer (100% open, high quality, free of watermarks and API keys)
-      const primaryTile = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      // High-performance Esri World Street Map (reliable, no 403 blocks, no watermarks, no API keys)
+      const primaryTile = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
         maxZoom: 19,
-        subdomains: ['a', 'b', 'c'],
         attribution:
-          '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors'
+          'Tiles &copy; <a href="https://www.esri.com" target="_blank" rel="noopener noreferrer">Esri</a> &mdash; Source: Esri, DeLorme, USGS, NPS'
       });
 
       primaryTile.on('tileerror', () => {
         try {
-          L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+          L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
             maxZoom: 19,
-            attribution: 'Tiles &copy; Esri'
+            subdomains: ['a', 'b', 'c'],
+            attribution: '&copy; OpenStreetMap contributors'
           }).addTo(map);
         } catch (_) {}
       });
