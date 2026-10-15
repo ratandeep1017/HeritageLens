@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapPin, Navigation, ExternalLink, AlertCircle, Compass } from 'lucide-react';
+import { MapPin, Navigation, ExternalLink, AlertCircle, Compass, Layers } from 'lucide-react';
 import { resolveSiteCoordinates } from '../utils/geoCoordinates';
 
 interface SiteLocationMapProps {
@@ -14,6 +14,8 @@ interface SiteLocationMapProps {
   currentLang: 'en' | 'hi';
 }
 
+type MapMode = 'streets' | 'satellite' | 'embed';
+
 export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
   latitude,
   longitude,
@@ -25,6 +27,9 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
 }) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
+
+  const [mapMode, setMapMode] = useState<MapMode>('streets');
   const [mapError, setMapError] = useState<boolean>(false);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
 
@@ -37,13 +42,73 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
   const effectiveLng = resolvedCoords?.lng;
   const hasValidCoordinates = typeof effectiveLat === 'number' && typeof effectiveLng === 'number' && effectiveLat !== 0;
 
+  // External directions URL to Google Maps
+  const externalMapUrl = hasValidCoordinates
+    ? `https://www.google.com/maps/dir/?api=1&destination=${effectiveLat},${effectiveLng}`
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${siteName} ${state || ''} India`)}`;
+
+  // Google Maps native embed URL (100% free, no credit card or API key required)
+  const embedMapUrl = hasValidCoordinates
+    ? `https://maps.google.com/maps?q=${effectiveLat},${effectiveLng}&hl=${currentLang === 'hi' ? 'hi' : 'en'}&z=15&output=embed`
+    : `https://maps.google.com/maps?q=${encodeURIComponent(`${siteName} ${state || ''} India`)}&hl=${currentLang === 'hi' ? 'hi' : 'en'}&z=15&output=embed`;
+
+  // Helper to create appropriate Google tile layer
+  const createTileLayer = (mode: 'streets' | 'satellite') => {
+    if (mode === 'satellite') {
+      const satTile = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        attribution: '&copy; Google Maps'
+      });
+      satTile.on('tileerror', () => {
+        try {
+          if (mapInstanceRef.current) {
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+              maxZoom: 19,
+              attribution: 'Tiles &copy; Esri'
+            }).addTo(mapInstanceRef.current);
+          }
+        } catch (_) {}
+      });
+      return satTile;
+    } else {
+      const roadTile = L.tileLayer('https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+        maxZoom: 20,
+        attribution: '&copy; Google Maps'
+      });
+      roadTile.on('tileerror', () => {
+        try {
+          if (mapInstanceRef.current) {
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+              maxZoom: 19,
+              attribution: 'Tiles &copy; Esri'
+            }).addTo(mapInstanceRef.current);
+          }
+        } catch (_) {}
+      });
+      return roadTile;
+    }
+  };
+
+  // Switch tile layer smoothly when toggling streets/satellite in Leaflet mode
   useEffect(() => {
-    if (!hasValidCoordinates || !mapContainerRef.current) {
+    if (mapMode === 'embed' || !mapInstanceRef.current) return;
+
+    if (tileLayerRef.current) {
+      mapInstanceRef.current.removeLayer(tileLayerRef.current);
+    }
+
+    const newTile = createTileLayer(mapMode);
+    newTile.addTo(mapInstanceRef.current);
+    tileLayerRef.current = newTile;
+  }, [mapMode]);
+
+  // Initialize Leaflet map
+  useEffect(() => {
+    if (mapMode === 'embed' || !hasValidCoordinates || !mapContainerRef.current) {
       return;
     }
 
     try {
-      // Clean up prior map instance if any exists
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
@@ -59,29 +124,15 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
 
       mapInstanceRef.current = map;
 
-      // High-performance Esri World Street Map (reliable, no 403 blocks, no watermarks, no API keys)
-      const primaryTile = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-        maxZoom: 19,
-        attribution:
-          'Tiles &copy; <a href="https://www.esri.com" target="_blank" rel="noopener noreferrer">Esri</a> &mdash; Source: Esri, DeLorme, USGS, NPS'
-      });
-
-      primaryTile.on('tileerror', () => {
-        try {
-          L.tileLayer('https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            subdomains: ['a', 'b', 'c'],
-            attribution: '&copy; OpenStreetMap contributors'
-          }).addTo(map);
-        } catch (_) {}
-      });
-
+      // Add selected Google Maps tile layer
+      const primaryTile = createTileLayer(mapMode === 'satellite' ? 'satellite' : 'streets');
       primaryTile.addTo(map);
+      tileLayerRef.current = primaryTile;
 
       // Add Zoom Control on top right
       L.control.zoom({ position: 'topright' }).addTo(map);
 
-      // Custom Heritage Pin Marker using Leaflet DivIcon
+      // Custom animated Heritage Pin Marker
       const customPinHtml = `
         <div style="position: relative; display: flex; align-items: center; justify-content: center; width: 36px; height: 36px;">
           <div style="position: absolute; width: 36px; height: 36px; background-color: rgba(192, 94, 66, 0.25); border-radius: 9999px; animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
@@ -123,7 +174,7 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
       setIsLoaded(true);
       setMapError(false);
 
-      // Multi-stage invalidateSize to ensure tiles render immediately when DOM container mounts
+      // Invalidate size to ensure full tile rendering
       const t1 = setTimeout(() => {
         if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
       }, 150);
@@ -146,7 +197,7 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
         mapInstanceRef.current = null;
       }
     };
-  }, [latitude, longitude, siteName, areaName, category, state, hasValidCoordinates, effectiveLat, effectiveLng]);
+  }, [latitude, longitude, siteName, areaName, category, state, hasValidCoordinates, effectiveLat, effectiveLng, mapMode === 'embed']);
 
   // Recenter helper
   const handleRecenter = () => {
@@ -154,11 +205,6 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
       mapInstanceRef.current.setView([effectiveLat!, effectiveLng!], 15, { animate: true });
     }
   };
-
-  // Google Maps External Directions Link
-  const externalMapUrl = hasValidCoordinates
-    ? `https://www.google.com/maps/search/?api=1&query=${effectiveLat},${effectiveLng}`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${siteName} ${state || ''} India`)}`;
 
   if (!hasValidCoordinates || mapError) {
     return (
@@ -171,44 +217,28 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
         </div>
         <div className="space-y-1 max-w-md">
           <span className="text-[10px] font-bold uppercase tracking-wider text-[#C05E42] px-2.5 py-0.5 rounded-full bg-[#C05E42]/10">
-            {currentLang === 'en' ? 'Map Unavailable' : 'मानचित्र अनुपलब्ध'}
+            {currentLang === 'en' ? 'Map View' : 'मानचित्र दृश्य'}
           </span>
           <h4 className="text-sm sm:text-base font-bold font-serif-heritage text-[#1A1A1A]">
             {currentLang === 'en'
-              ? 'Interactive Map Tile Unavailable'
-              : 'इंटरैक्टिव मानचित्र लोड नहीं हो सका'}
+              ? 'Open Google Maps for Live Navigation'
+              : 'लाइव नेविगेशन के लिए गूगल मैप्स खोलें'}
           </h4>
           <p className="text-xs text-[#5C544E] leading-relaxed">
             {currentLang === 'en'
-              ? !hasValidCoordinates
-                ? 'Exact geographic coordinates for this site are missing from the local record.'
-                : 'Unable to render map tiles. This may be due to an intermittent network connection.'
-              : !hasValidCoordinates
-                ? 'इस स्थल के भौगोलिक निर्देशांक स्थानीय रिकॉर्ड में उपलब्ध नहीं हैं।'
-                : 'मानचित्र लोड नहीं हो सका। कृपया अपना नेटवर्क कनेक्शन जांचें।'}
+              ? 'Access accurate directions, live traffic, and street view directly via Google Maps.'
+              : 'सटीक दिशा-निर्देश, लाइव ट्रैफ़िक और स्ट्रीट व्यू गूगल मैप्स पर देखें।'}
           </p>
         </div>
 
-        {/* Actionable next steps */}
         <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
-          {mapError && hasValidCoordinates && (
-            <button
-              type="button"
-              onClick={() => setMapError(false)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white hover:bg-[#FDFBF7] border border-[#E8E2D9] text-xs font-bold text-[#1A1A1A] transition-colors shadow-2xs cursor-pointer"
-            >
-              <Compass className="w-3.5 h-3.5 text-[#C05E42]" />
-              <span>{currentLang === 'en' ? 'Retry Map' : 'पुनः प्रयास करें'}</span>
-            </button>
-          )}
-
           <a
             href={externalMapUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2C4A3E] hover:bg-[#223930] text-white text-xs font-bold transition-colors shadow-2xs"
           >
-            <ExternalLink className="w-3.5 h-3.5" />
+            <ExternalLink className="w-3.5 h-3.5 text-[#D4AF37]" />
             <span>{currentLang === 'en' ? 'Open in Google Maps' : 'गूगल मैप्स में खोलें'}</span>
           </a>
         </div>
@@ -221,7 +251,7 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
       id="site-location-map-wrapper"
       className="bg-[#FDFBF7] border border-[#E8E2D9] rounded-3xl overflow-hidden shadow-xs flex flex-col"
     >
-      {/* Header bar with controls */}
+      {/* Header bar with controls & Google Maps mode toggle */}
       <div className="p-4 sm:px-6 bg-[#F3EEE7]/80 border-b border-[#E8E2D9] flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-xl bg-[#2C4A3E] text-[#D4AF37] flex items-center justify-center">
@@ -232,21 +262,61 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
               {currentLang === 'en' ? 'Site Geolocation & Area Map' : 'स्मारक स्थान व क्षेत्रीय मानचित्र'}
             </h4>
             <span className="text-[11px] text-[#5C544E]">
-              {latitude?.toFixed(4)}° N, {longitude?.toFixed(4)}° E • {areaName?.split('(')[0] || 'Delhi'}
+              {latitude?.toFixed(4)}° N, {longitude?.toFixed(4)}° E • {areaName?.split('(')[0] || state || 'India'}
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={handleRecenter}
-            className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#FDFBF7] border border-[#E8E2D9] text-xs font-semibold text-[#5C544E] hover:text-[#C05E42] transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
-            title="Recenter map"
-          >
-            <Navigation className="w-3.5 h-3.5 text-[#C05E42]" />
-            <span className="hidden sm:inline">{currentLang === 'en' ? 'Recenter' : 'पुनः केंद्रित करें'}</span>
-          </button>
+        {/* Action Buttons: Map Type Switcher + Recenter + Directions */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Map Layer Switcher */}
+          <div className="inline-flex p-1 bg-white border border-[#E8E2D9] rounded-xl shadow-2xs text-[11px] font-bold">
+            <button
+              type="button"
+              onClick={() => setMapMode('streets')}
+              className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                mapMode === 'streets'
+                  ? 'bg-[#2C4A3E] text-white'
+                  : 'text-[#5C544E] hover:text-[#1A1A1A]'
+              }`}
+            >
+              {currentLang === 'en' ? 'Map' : 'मानचित्र'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMapMode('satellite')}
+              className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                mapMode === 'satellite'
+                  ? 'bg-[#2C4A3E] text-white'
+                  : 'text-[#5C544E] hover:text-[#1A1A1A]'
+              }`}
+            >
+              {currentLang === 'en' ? 'Satellite' : 'सैटेलाइट'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMapMode('embed')}
+              className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                mapMode === 'embed'
+                  ? 'bg-[#2C4A3E] text-white'
+                  : 'text-[#5C544E] hover:text-[#1A1A1A]'
+              }`}
+            >
+              {currentLang === 'en' ? 'Google 3D' : 'गूगल 3D'}
+            </button>
+          </div>
+
+          {mapMode !== 'embed' && (
+            <button
+              type="button"
+              onClick={handleRecenter}
+              className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#FDFBF7] border border-[#E8E2D9] text-xs font-semibold text-[#5C544E] hover:text-[#C05E42] transition-colors flex items-center gap-1.5 cursor-pointer shadow-2xs"
+              title="Recenter map"
+            >
+              <Navigation className="w-3.5 h-3.5 text-[#C05E42]" />
+              <span className="hidden sm:inline">{currentLang === 'en' ? 'Recenter' : 'पुनः केंद्रित'}</span>
+            </button>
+          )}
 
           <a
             href={externalMapUrl}
@@ -260,24 +330,44 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
         </div>
       </div>
 
-      {/* Leaflet interactive Map viewport */}
-      <div className="relative w-full h-64 sm:h-72 bg-[#E8E2D9]">
-        <div 
-          ref={mapContainerRef} 
-          className="w-full h-full z-10"
-          style={{ minHeight: '256px' }}
-        />
+      {/* Map Viewport: Leaflet Interactive or Google Embed */}
+      <div className="relative w-full h-72 sm:h-80 bg-[#E8E2D9]">
+        {mapMode === 'embed' ? (
+          <iframe
+            title={`Google Maps location of ${siteName}`}
+            src={embedMapUrl}
+            className="w-full h-full border-0"
+            loading="lazy"
+            allowFullScreen
+          />
+        ) : (
+          <div 
+            ref={mapContainerRef} 
+            className="w-full h-full z-10"
+            style={{ minHeight: '288px' }}
+          />
+        )}
       </div>
 
-      {/* Footer Info Notice with Attribution Compliance */}
+      {/* Footer Info Notice with Google Maps Attribution */}
       <div className="px-4 py-2.5 bg-[#FDFBF7] border-t border-[#E8E2D9] flex flex-wrap items-center justify-between text-[10px] text-[#8C8276] gap-2">
         <span className="flex items-center gap-1">
           <MapPin className="w-3 h-3 text-[#C05E42]" />
-          <span>{currentLang === 'en' ? 'Interactive OpenStreetMap Marker' : 'ओपनस्ट्रीटमैप मार्कर'}</span>
+          <span>
+            {currentLang === 'en'
+              ? 'Powered by Google Maps • Real-time Geographic Positioning'
+              : 'गूगल मैप्स द्वारा संचालित • वास्तविक समय भौगोलिक स्थिति'}
+          </span>
         </span>
-        <span>
-          © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" className="underline hover:text-[#1A1A1A]">OpenStreetMap</a> contributors
-        </span>
+        <a
+          href={externalMapUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[#2C4A3E] hover:underline font-bold inline-flex items-center gap-1"
+        >
+          <span>{currentLang === 'en' ? 'Open in Google Maps' : 'गूगल मैप्स में खोलें'}</span>
+          <ExternalLink className="w-3 h-3" />
+        </a>
       </div>
     </div>
   );
