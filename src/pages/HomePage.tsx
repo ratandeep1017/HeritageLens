@@ -27,7 +27,8 @@ import {
   Eye,
   CheckCircle,
   Plus,
-  Check
+  Check,
+  SearchX
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HeritageDataStore, useHeritageSites } from '../services/heritageDataStore';
@@ -761,16 +762,41 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
                   )}
                 </div>
               ) : (
-                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2.5">
-                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="font-bold block">
-                      {currentLang === 'en' ? 'Monument Not Verified:' : 'स्मारक सत्यापित नहीं हुआ:'}
-                    </span>
-                    <span className="leading-relaxed">
-                      {aiSearchResult.rejectionReason || aiSearchResult.error || (currentLang === 'en' ? 'Could not verify place as a recognized heritage site.' : 'स्थल को प्रमाणित धरोहर स्थल के रूप में नहीं पहचाना जा सका।')}
-                    </span>
+                <div className="p-5 sm:p-6 rounded-2xl bg-[#FDFBF7] border border-[#E8E2D9] shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-start gap-3.5">
+                    <div className="w-10 h-10 rounded-xl bg-stone-100 border border-stone-200 text-stone-500 flex items-center justify-center shrink-0 mt-0.5">
+                      <SearchX className="w-5 h-5 text-stone-600" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-md bg-stone-200/80 text-stone-700 uppercase tracking-wider">
+                          {currentLang === 'en' ? 'Nothing Found' : 'कोई परिणाम नहीं मिला'}
+                        </span>
+                      </div>
+                      <h4 className="text-sm font-bold text-[#1A1A1A] font-serif-heritage mt-1.5">
+                        {aiSearchResult.rejectionReason || aiSearchResult.error || (currentLang === 'en' ? `No monument or heritage place found matching "${aiSearchQuery}".` : `"${aiSearchQuery}" से मेल खाता कोई स्मारक नहीं मिला।`)}
+                      </h4>
+                      <p className="text-xs text-[#8C8276] mt-1 leading-relaxed">
+                        {currentLang === 'en'
+                          ? 'Please ensure you search for a real, physical monument, temple, fort, or historic place (e.g. Red Fort, ISKCON Temple, Taj Mahal).'
+                          : 'कृपया किसी वास्तविक भौतिक स्मारक, मंदिर, किले या ऐतिहासिक स्थल का नाम खोजें (जैसे लाल किला, इस्कॉन मंदिर, ताजमहल)।'}
+                      </p>
+                    </div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAiSearchResult(null);
+                      setAiSearchQuery('');
+                      try {
+                        sessionStorage.removeItem('heritagelens_last_ai_search_result');
+                      } catch {}
+                    }}
+                    className="self-end sm:self-center px-4 py-2 rounded-xl bg-white hover:bg-[#F3EEE7] border border-[#E8E2D9] text-xs font-bold text-[#5C544E] hover:text-[#1A1A1A] transition-colors cursor-pointer shrink-0 shadow-2xs"
+                  >
+                    {currentLang === 'en' ? 'Clear Search' : 'खोज साफ़ करें'}
+                  </button>
                 </div>
               )}
             </div>

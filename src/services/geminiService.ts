@@ -17,6 +17,7 @@ import { GoogleGenAI } from '@google/genai';
 import { StorageService } from './storage';
 import { HeritageDataStore } from './heritageDataStore';
 import { HeritageSite, IdentificationResult } from '../types';
+import { validateClientSearchQuery } from '../utils/searchValidator';
 
 /**
  * The 10 officially supported Delhi heritage sites for HeritageLens AI Pilot.
@@ -420,6 +421,16 @@ export async function generateHeritageSiteFromSearch(
     };
   }
 
+  // 0. Fast pre-validation: reject illegal, non-place objects, fictional, or gibberish queries immediately
+  const validation = validateClientSearchQuery(cleanQuery);
+  if (!validation.valid) {
+    return {
+      success: true,
+      isRealHeritageSite: false,
+      rejectionReason: preferredLang === 'hi' ? validation.reasonHi : validation.reason,
+    };
+  }
+
   // 1. Try server-side generation first
   try {
     const serverRes = await fetch('/api/generate-site', {
@@ -430,29 +441,40 @@ export async function generateHeritageSiteFromSearch(
 
     if (serverRes.ok) {
       const serverData = await serverRes.json();
-      if (serverData.success && serverData.site) {
-        // Fetch authentic place image
-        let resolvedImage = '';
-        try {
-          resolvedImage = await fetchAuthenticPlaceImage(
-            serverData.site.name || cleanQuery,
-            serverData.site.tags || [],
-            serverData.site.shortDescription || ''
-          );
-        } catch {}
+      if (serverData.success) {
+        // If server determined this is not a real place / illegal / rejected
+        if (serverData.isRealHeritageSite === false) {
+          return {
+            success: true,
+            isRealHeritageSite: false,
+            rejectionReason: serverData.rejectionReason || (preferredLang === 'hi' ? 'कोई परिणाम नहीं मिला।' : 'Nothing found for this search.'),
+          };
+        }
 
-        const completeSite: HeritageSite = {
-          ...serverData.site,
-          id: (serverData.site.id || cleanQuery.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')),
-          imageUrl: resolvedImage || serverData.site.imageUrl || 'https://images.unsplash.com/photo-1592635196078-9fdc757f27f4?auto=format&fit=crop&w=1200&q=80',
-        };
+        if (serverData.site) {
+          // Fetch authentic place image
+          let resolvedImage = '';
+          try {
+            resolvedImage = await fetchAuthenticPlaceImage(
+              serverData.site.name || cleanQuery,
+              serverData.site.tags || [],
+              serverData.site.shortDescription || ''
+            );
+          } catch {}
 
-        return {
-          success: true,
-          isRealHeritageSite: true,
-          site: completeSite,
-          isAlreadyListed: Boolean(serverData.isAlreadyListed),
-        };
+          const completeSite: HeritageSite = {
+            ...serverData.site,
+            id: (serverData.site.id || cleanQuery.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')),
+            imageUrl: resolvedImage || serverData.site.imageUrl || 'https://images.unsplash.com/photo-1592635196078-9fdc757f27f4?auto=format&fit=crop&w=1200&q=80',
+          };
+
+          return {
+            success: true,
+            isRealHeritageSite: true,
+            site: completeSite,
+            isAlreadyListed: Boolean(serverData.isAlreadyListed),
+          };
+        }
       }
     }
   } catch (serverErr) {

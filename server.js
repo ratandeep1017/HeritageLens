@@ -19,6 +19,7 @@ import {
 import { initCloudinary, uploadToCloudinary, isCloudinaryReady } from './server/cloudinary.js';
 import { identifyMonumentImage, generateSiteDossier, isGeminiAvailable, searchImagesWithGemini } from './server/gemini.js';
 import { searchPlacePhotos, isGooglePlacesConfigured, getGooglePlacesApiKey } from './server/places.js';
+import { validateSearchQuery } from './server/validator.js';
 
 // Admin active session token store (memory cache)
 const activeAdminTokens = new Set();
@@ -437,6 +438,18 @@ app.get('/api/image-search', async (req, res) => {
     }
 
     const cleanQuery = rawQuery.replace(/\(.*?\)/g, '').trim() || rawQuery;
+    
+    // Quick validation check: do not search images for illegal/non-place/gibberish queries
+    const queryCheck = validateSearchQuery(cleanQuery);
+    if (!queryCheck.valid) {
+      return res.json({
+        success: true,
+        query: cleanQuery,
+        count: 0,
+        data: [],
+      });
+    }
+
     const queryWords = cleanQuery
       .toLowerCase()
       .split(/\s+/)
@@ -789,6 +802,18 @@ app.post('/api/generate-site', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Query parameter is required.' });
     }
 
+    // 0. Quick Validation Check: Reject illegal, non-place objects, fictional, or gibberish queries immediately
+    const validation = validateSearchQuery(query);
+    if (!validation.valid) {
+      console.log(`[Generate Site] Rejected invalid search query: "${query}" - ${validation.reason}`);
+      return res.json({
+        success: true,
+        isRealHeritageSite: false,
+        rejectionReason: validation.reason,
+        site: null,
+      });
+    }
+
     // 1. Check if place is ALREADY listed in the catalog / database to prevent duplicate AI calls
     let allSites = isDbConnected() ? await getAllSitesFromDb() : readSitesFromFile();
     if (!allSites || allSites.length === 0) allSites = readSitesFromFile();
@@ -798,6 +823,7 @@ app.post('/api/generate-site', async (req, res) => {
       console.log(`[Generate Site] Place '${query}' already listed as '${existing.name}' (${existing.id}). Returning existing record.`);
       return res.json({
         success: true,
+        isRealHeritageSite: true,
         site: existing,
         isAlreadyListed: true,
       });
@@ -811,7 +837,23 @@ app.post('/api/generate-site', async (req, res) => {
     }
 
     const siteDossier = await generateSiteDossier(query, lang || 'en');
-    res.json({ success: true, site: siteDossier, isAlreadyListed: false });
+
+    // If Gemini determined that this query is not a real physical heritage site/landmark
+    if (!siteDossier || siteDossier.isRealHeritageSite === false) {
+      return res.json({
+        success: true,
+        isRealHeritageSite: false,
+        rejectionReason: siteDossier?.rejectionReason || `Nothing found. "${query}" is not a recognized monument or heritage site.`,
+        site: null,
+      });
+    }
+
+    res.json({
+      success: true,
+      isRealHeritageSite: true,
+      site: siteDossier,
+      isAlreadyListed: false,
+    });
   } catch (error) {
     console.error('POST /api/generate-site error:', error.message);
     res.status(500).json({ success: false, error: error.message || 'Failed to generate site dossier.' });

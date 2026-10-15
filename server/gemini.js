@@ -131,12 +131,33 @@ export async function generateSiteDossier(query, preferredLang = 'en') {
 
   const ai = new GoogleGenAI({ apiKey });
 
-  const systemInstruction = `You are a cultural landmarks guide, architectural expert, and heritage researcher specializing in Delhi NCR, India, and famous world destinations.
-Your task is to evaluate user queries for real places and generate rich, structured JSON dossiers.
+  const systemInstruction = `You are a cultural landmarks guide, architectural expert, and heritage researcher.
+Your task is to strictly evaluate whether a user's query refers to a REAL, PHYSICAL landmark, monument, cultural site, temple, museum, or historic location on Earth.
+
+STRICT REJECTION RULES:
+You MUST reject and return "isRealHeritageSite": false if the query:
+1. Is illegal, dangerous, weapons, violence, drugs, contraband, adult, or inappropriate.
+2. Is NOT a physical place or monument (e.g. an object, gadget, animal, person, software, company, food, abstract concept).
+3. Does NOT exist or is purely fictional/fantasy/mythological (e.g. Hogwarts, Wakanda, Gotham City, Atlantis).
+4. Is random gibberish, meaningless typing, or an unrecognized term.
+In any of these cases, do NOT fabricate or hallucinate a place. Return ONLY:
+{
+  "isRealHeritageSite": false,
+  "rejectionReason": "Nothing found. \\"${query}\\" is not a recognized monument, cultural heritage site, or real physical place."
+}
+
+ACCEPTANCE RULES:
+Accept ONLY if the query is a genuine, verified physical place, historic monument, spiritual site, or cultural landmark (e.g. Taj Mahal, Red Fort, ISKCON Temple, Lotus Temple, Qutub Minar).
 Return ONLY valid JSON without backticks.`;
 
-  const promptText = `Generate a complete structured JSON dossier for the place: "${query}".
-Format as a single JSON object with these exact keys:
+  const promptText = `Evaluate this query: "${query}".
+If it is NOT a real existing place, monument, or cultural landmark (or if it is illegal, an object, fictional, or gibberish), return:
+{
+  "isRealHeritageSite": false,
+  "rejectionReason": "Nothing found. \\"${query}\\" is not a recognized monument, cultural heritage site, or real physical place."
+}
+
+If and ONLY IF it is a real physical landmark/monument, return:
 {
   "isRealHeritageSite": true,
   "name": "Full English Name",
@@ -158,7 +179,7 @@ Format as a single JSON object with these exact keys:
     "timings": "e.g. Sunrise to Sunset (Closed Mondays)",
     "entryFee": "e.g. ₹50 (Indians), ₹600 (Foreigners)",
     "nearestMetro": "e.g. Chandni Chowk Metro (Yellow Line)",
-    "bestTimeToVisit": "e.g. October to March (Early morning or late afternoon)",
+    "bestTimeToVisit": "e.g. October to March",
     "rules": ["rule 1", "rule 2"]
   },
   "nearbyAttractions": [
@@ -166,7 +187,7 @@ Format as a single JSON object with these exact keys:
   ],
   "imageAlt": "Visual description",
   "sourceNote": "Official Archaeological Records & Historical Archives",
-  "tags": ["Heritage", "Monument", "Delhi NCR"]
+  "tags": ["Heritage", "Monument"]
 }`;
 
   const { response, model } = await callGemini(ai, {
@@ -178,8 +199,22 @@ Format as a single JSON object with these exact keys:
   });
 
   const rawText = response?.text || '';
-  const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-  const parsed = JSON.parse(cleanJson);
+  let parsed;
+  try {
+    const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+    parsed = JSON.parse(cleanJson);
+  } catch (e) {
+    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      parsed = JSON.parse(jsonMatch[0]);
+    } else {
+      return {
+        isRealHeritageSite: false,
+        rejectionReason: `Nothing found. "${query}" is not a recognized monument or place.`,
+        modelUsed: model,
+      };
+    }
+  }
 
   return {
     ...parsed,
