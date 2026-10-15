@@ -18,6 +18,7 @@ import {
 } from './server/db.js';
 import { initCloudinary, uploadToCloudinary, isCloudinaryReady } from './server/cloudinary.js';
 import { identifyMonumentImage, generateSiteDossier, isGeminiAvailable, searchImagesWithGemini } from './server/gemini.js';
+import { searchPlacePhotos, isGooglePlacesConfigured, getGooglePlacesApiKey } from './server/places.js';
 
 // Admin active session token store (memory cache)
 const activeAdminTokens = new Set();
@@ -105,6 +106,7 @@ app.get('/api/health', async (req, res) => {
     timestamp: new Date().toISOString(),
     database: isDbConnected() ? 'TiDB Cloud Serverless' : 'Local File Fallback',
     cloudinary: isCloudinaryReady() ? 'Connected' : 'Not Configured',
+    googlePlaces: isGooglePlacesConfigured() ? 'Connected' : 'Not Configured',
     monumentsCount: count,
   });
 });
@@ -389,6 +391,43 @@ app.post('/api/upload', async (req, res) => {
   }
 });
 
+// 8b. GET Google Places Photo Proxy (Streams or redirects to photo without leaking API key)
+app.get('/api/places/photo-proxy', async (req, res) => {
+  const apiKey = getGooglePlacesApiKey();
+  if (!apiKey) return res.status(401).send('No Google Places API key configured');
+
+  const { name, ref, max } = req.query;
+  const maxSize = max ? parseInt(max, 10) : 1600;
+
+  try {
+    let targetUrl = '';
+    if (name) {
+      targetUrl = `https://places.googleapis.com/v1/${name}/media?maxWidthPx=${maxSize}&key=${apiKey}`;
+    } else if (ref) {
+      targetUrl = `https://maps.googleapis.com/maps/api/place/photo?maxwidth=${maxSize}&photo_reference=${encodeURIComponent(ref)}&key=${apiKey}`;
+    } else {
+      return res.status(400).send('Missing name or ref parameter');
+    }
+
+    const redirectRes = await fetch(targetUrl, { redirect: 'manual' });
+    const location = redirectRes.headers.get('location');
+    if (location) {
+      return res.redirect(location);
+    }
+
+    // Stream image directly if no redirect
+    const imgRes = await fetch(targetUrl);
+    const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    const buffer = await imgRes.arrayBuffer();
+    return res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.error('Photo proxy error:', err);
+    res.status(500).send('Failed to fetch photo from Google Places');
+  }
+});
+
 // 9. GET live web / Google image search for any monument / place
 app.get('/api/image-search', async (req, res) => {
   try {
@@ -435,7 +474,53 @@ app.get('/api/image-search', async (req, res) => {
 
     const results = [];
 
-    // 1. Gemini-Powered Google Search (works from ANY IP - cloud/datacenter included)
+    // 0. SerpAPI Google Images (Priority #0 - Real Google Images Results)
+    const serpApiKey = (process.env.SERPAPI_KEY || process.env.SERPAPI_API_KEY || '').trim();
+    if (serpApiKey && results.length < 15) {
+      try {
+        const serpUrl = `https://serpapi.com/search.json?engine=google_images&q=${encodeURIComponent(cleanQuery)}&api_key=${serpApiKey}&num=15`;
+        const sRes = await fetch(serpUrl);
+        if (sRes.ok) {
+          const sData = await sRes.json();
+          const items = sData.images_results || [];
+          for (let i = 0; i < items.length; i++) {
+            const it = items[i];
+            const imgUrl = it.original;
+            if (imgUrl && imgUrl.startsWith('http') && !results.some((r) => r.url === imgUrl)) {
+              results.push({
+                id: `google-img-${i}-${Date.now()}`,
+                title: it.title || cleanQuery,
+                url: imgUrl,
+                thumbUrl: it.thumbnail || imgUrl,
+                source: it.source ? `Google Images · ${it.source}` : 'Google Images',
+              });
+            }
+          }
+          if (results.length > 0) {
+            console.log(`[SerpAPI] Retrieved ${results.length} genuine Google Images for "${cleanQuery}"`);
+          }
+        }
+      } catch (err) {
+        console.warn('[Image Search] SerpAPI error:', err.message);
+      }
+    }
+
+    // 1. Google Places & Google Maps Photos API (Priority #1 - Verified physical place photographs)
+    //    Directly queries Google Maps for the place and returns verified visitor and official photos.
+    if (isGooglePlacesConfigured() && results.length < 15) {
+      try {
+        const placePhotos = await searchPlacePhotos(cleanQuery);
+        for (const item of placePhotos) {
+          if (!results.some((r) => r.url === item.url)) {
+            results.push(item);
+          }
+        }
+      } catch (err) {
+        console.warn('[Image Search] Google Places error:', err.message);
+      }
+    }
+
+    // 2. Gemini-Powered Google Search (works from ANY IP - cloud/datacenter included)
     //    Uses the Gemini API's built-in Google Search grounding to find real image URLs.
     //    This is the primary source on Render where direct scraping fails due to IP blocks.
     if (isGeminiAvailable() && results.length < 8) {

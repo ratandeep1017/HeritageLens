@@ -35,7 +35,7 @@ interface ImageResultItem {
   url: string;
   thumbUrl: string;
   title: string;
-  source: 'Wikimedia' | 'Wikipedia' | 'Curated' | 'Upload' | 'Custom';
+  source: string;
   description?: string;
 }
 
