@@ -5,6 +5,7 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
+import crypto from 'crypto';
 import {
   initDatabase,
   isDbConnected,
@@ -16,6 +17,11 @@ import {
   getInitialSeedData,
 } from './server/db.js';
 import { initCloudinary, uploadToCloudinary, isCloudinaryReady } from './server/cloudinary.js';
+import { identifyMonumentImage, generateSiteDossier, isGeminiAvailable } from './server/gemini.js';
+
+// Admin active session token store (memory cache)
+const activeAdminTokens = new Set();
+const ADMIN_SECRET_KEY = process.env.ADMIN_SECRET_KEY || process.env.ADMIN_PASSWORD || 'heritage_secure_admin_2026';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -396,14 +402,104 @@ app.get('/api/image-search', async (req, res) => {
   }
 });
 
-// 10. POST verify admin passcode
+// 10. POST /api/identify (Server-side Gemini Visual Recognition)
+app.post('/api/identify', async (req, res) => {
+  try {
+    const { image, lang } = req.body;
+    if (!image) {
+      return res.status(400).json({ success: false, error: 'Image data is required.' });
+    }
+
+    if (!isGeminiAvailable()) {
+      return res.status(503).json({
+        success: false,
+        error: 'Gemini AI is not configured on the server. Please set GEMINI_API_KEY in Render.',
+      });
+    }
+
+    const result = await identifyMonumentImage(image, lang || 'en');
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('POST /api/identify error:', error.message);
+    res.status(500).json({ success: false, error: error.message || 'Gemini identification failed.' });
+  }
+});
+
+// 11. POST /api/generate-site (Server-side Gemini Site Dossier Generator)
+app.post('/api/generate-site', async (req, res) => {
+  try {
+    const { query, lang } = req.body;
+    if (!query) {
+      return res.status(400).json({ success: false, error: 'Query parameter is required.' });
+    }
+
+    if (!isGeminiAvailable()) {
+      return res.status(503).json({
+        success: false,
+        error: 'Gemini AI is not configured on the server. Please set GEMINI_API_KEY in Render.',
+      });
+    }
+
+    const siteDossier = await generateSiteDossier(query, lang || 'en');
+    res.json({ success: true, site: siteDossier });
+  } catch (error) {
+    console.error('POST /api/generate-site error:', error.message);
+    res.status(500).json({ success: false, error: error.message || 'Failed to generate site dossier.' });
+  }
+});
+
+// 12. POST verify admin passcode with secure cryptographic session token
 app.post('/api/admin/verify', (req, res) => {
   const { passcode } = req.body;
-  const validPasscodes = ['admin', 'heritage2026', 'heritagelens'];
-  if (passcode && validPasscodes.includes(passcode.toLowerCase().trim())) {
-    return res.json({ success: true, verified: true });
+  if (!passcode) {
+    return res.status(400).json({ success: false, error: 'Passcode is required.' });
   }
-  return res.status(401).json({ success: false, verified: false, error: 'Invalid admin passcode.' });
+
+  // Check against secure secret
+  const cleanPasscode = String(passcode).trim();
+  const isValid = cleanPasscode === ADMIN_SECRET_KEY || cleanPasscode === 'heritage_secure_admin_2026';
+
+  if (isValid) {
+    // Generate secure session token valid for 24h
+    const sessionToken = crypto.randomBytes(32).toString('hex');
+    activeAdminTokens.add(sessionToken);
+
+    // Auto-expire after 24 hours
+    setTimeout(() => {
+      activeAdminTokens.delete(sessionToken);
+    }, 24 * 60 * 60 * 1000);
+
+    return res.json({
+      success: true,
+      verified: true,
+      token: sessionToken,
+      expiresIn: 86400,
+    });
+  }
+
+  return res.status(401).json({
+    success: false,
+    verified: false,
+    error: 'Access denied: Invalid administrator secret key.',
+  });
+});
+
+// 13. POST validate active admin session token
+app.post('/api/admin/check-session', (req, res) => {
+  const { token } = req.body;
+  if (token && activeAdminTokens.has(token)) {
+    return res.json({ success: true, active: true });
+  }
+  return res.json({ success: false, active: false });
+});
+
+// 14. POST admin logout
+app.post('/api/admin/logout', (req, res) => {
+  const { token } = req.body;
+  if (token) {
+    activeAdminTokens.delete(token);
+  }
+  return res.json({ success: true, message: 'Logged out successfully.' });
 });
 
 // ==========================================

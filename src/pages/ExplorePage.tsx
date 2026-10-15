@@ -73,12 +73,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ currentLang, onLangCha
 
   const handleIdentifyClick = () => {
     if (!selectedImage) return;
-    const apiKey = getStoredGeminiKey();
-    if (!apiKey) {
-      setShowKeyModal(true);
-      return;
-    }
-    executeIdentify(apiKey);
+    executeIdentify();
   };
 
   // Execute Identification
@@ -565,16 +560,6 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ currentLang, onLangCha
         )}
       </section>
 
-      {/* API Key Modal */}
-      <ApiKeyPromptModal
-        isOpen={showKeyModal}
-        onClose={() => setShowKeyModal(false)}
-        onContinueDemo={() => {
-          setShowKeyModal(false);
-          executeIdentify();
-        }}
-        currentLang={currentLang}
-      />
     </div>
   );
 };

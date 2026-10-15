@@ -20,28 +20,81 @@ const DEFAULT_SETTINGS: UserSettings = {
 export const StorageService = {
   isAdminUnlocked(): boolean {
     try {
-      return localStorage.getItem(STORAGE_KEYS.ADMIN_UNLOCKED) === 'true';
+      const token = localStorage.getItem('heritagelens_admin_token_v2');
+      return Boolean(token && token.length > 20);
     } catch (e) {
       return false;
     }
   },
 
-  setAdminUnlocked(unlocked: boolean): void {
+  getAdminToken(): string | null {
     try {
-      if (unlocked) {
-        localStorage.setItem(STORAGE_KEYS.ADMIN_UNLOCKED, 'true');
+      return localStorage.getItem('heritagelens_admin_token_v2');
+    } catch {
+      return null;
+    }
+  },
+
+  setAdminUnlocked(unlocked: boolean, token?: string): void {
+    try {
+      if (unlocked && token) {
+        localStorage.setItem('heritagelens_admin_token_v2', token);
       } else {
-        localStorage.removeItem(STORAGE_KEYS.ADMIN_UNLOCKED);
+        localStorage.removeItem('heritagelens_admin_token_v2');
       }
     } catch (e) {
       console.warn('Failed to update admin unlock state in localStorage');
     }
   },
 
-  verifyAdminPasscode(input: string): boolean {
-    const clean = (input || '').trim().toLowerCase();
-    const validCodes = ['admin', 'admin123', 'heritage2026', 'heritage', '1234'];
-    return validCodes.includes(clean);
+  async verifyAdminPasscode(passcode: string): Promise<{ success: boolean; token?: string; error?: string }> {
+    try {
+      const res = await fetch('/api/admin/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ passcode }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success && data.token) {
+        this.setAdminUnlocked(true, data.token);
+        return { success: true, token: data.token };
+      }
+      return { success: false, error: data.error || 'Incorrect administrator password.' };
+    } catch (err: any) {
+      return { success: false, error: 'Network error communicating with authentication server.' };
+    }
+  },
+
+  async checkAdminSession(): Promise<boolean> {
+    const token = this.getAdminToken();
+    if (!token) return false;
+    try {
+      const res = await fetch('/api/admin/check-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token }),
+      });
+      const data = await res.json();
+      if (data.active) return true;
+      this.setAdminUnlocked(false);
+      return false;
+    } catch {
+      return false;
+    }
+  },
+
+  async adminLogout(): Promise<void> {
+    const token = this.getAdminToken();
+    this.setAdminUnlocked(false);
+    if (token) {
+      try {
+        await fetch('/api/admin/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token }),
+        });
+      } catch {}
+    }
   },
 
   getSettings(): UserSettings {
@@ -69,29 +122,15 @@ export const StorageService = {
   },
 
   getAppMode(): 'gemini' | 'demo' {
-    try {
-      const directMode = localStorage.getItem(STORAGE_KEYS.APP_MODE) as 'gemini' | 'demo' | null;
-      if (directMode === 'demo' || directMode === 'gemini') {
-        return directMode;
-      }
-      const hasKey = Boolean(this.getApiKey());
-      return hasKey ? 'gemini' : 'demo';
-    } catch (e) {
-      return 'demo';
-    }
+    return 'gemini';
   },
 
-  setAppMode(mode: 'gemini' | 'demo'): void {
-    try {
-      localStorage.setItem(STORAGE_KEYS.APP_MODE, mode);
-    } catch (e) {
-      console.warn('Failed to save app mode to localStorage');
-    }
-    this.saveSettings({ appMode: mode });
+  setAppMode(_mode: 'gemini' | 'demo'): void {
+    // No-op: operating mode selection removed
   },
 
   isDemoMode(): boolean {
-    return this.getAppMode() === 'demo' || !this.getApiKey();
+    return false;
   },
 
   getApiKey(): string {

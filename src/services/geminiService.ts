@@ -177,15 +177,12 @@ async function callGeminiGenerateContent(
   requestConfig: any
 ): Promise<{ response: any; usedModel: string }> {
   const modelsToTry = [
-    'gemini-3.5-flash',
+    'gemini-3.8-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-4-argon',
     'gemini-3.1-flash-lite',
-    'gemini-3-flash-preview',
-    'gemini-3.5-flash-preview',
-    'gemini-3.1-flash-lite-preview',
     'gemini-2.5-flash',
-    'gemini-2.0-flash',
-    'gemini-1.5-flash',
-    'gemini-1.5-pro'
+    'gemini-2.0-flash'
   ];
 
   let lastError: any = null;
@@ -413,21 +410,60 @@ export async function generateHeritageSiteFromSearch(
   apiKey?: string,
   preferredLang: 'en' | 'hi' = 'en'
 ): Promise<GenerateSiteResponse> {
-  const effectiveKey = (apiKey || getStoredGeminiKey()).trim();
-  if (!effectiveKey) {
-    return {
-      success: false,
-      isRealHeritageSite: false,
-      error: 'Please configure and save a valid Google Gemini API Key first.'
-    };
-  }
-
   const cleanQuery = query.trim();
   if (!cleanQuery) {
     return {
       success: false,
       isRealHeritageSite: false,
       error: 'Please enter a monument or place name to search.'
+    };
+  }
+
+  // 1. Try server-side generation first
+  try {
+    const serverRes = await fetch('/api/generate-site', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: cleanQuery, lang: preferredLang }),
+    });
+
+    if (serverRes.ok) {
+      const serverData = await serverRes.json();
+      if (serverData.success && serverData.site) {
+        // Fetch authentic place image
+        let resolvedImage = '';
+        try {
+          resolvedImage = await fetchAuthenticPlaceImage(
+            serverData.site.name || cleanQuery,
+            serverData.site.tags || [],
+            serverData.site.shortDescription || ''
+          );
+        } catch {}
+
+        const completeSite: HeritageSite = {
+          ...serverData.site,
+          id: (serverData.site.id || cleanQuery.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')),
+          imageUrl: resolvedImage || serverData.site.imageUrl || 'https://images.unsplash.com/photo-1592635196078-9fdc757f27f4?auto=format&fit=crop&w=1200&q=80',
+        };
+
+        await HeritageDataStore.addNewSite(completeSite);
+        return {
+          success: true,
+          isRealHeritageSite: true,
+          site: completeSite,
+        };
+      }
+    }
+  } catch (serverErr) {
+    console.warn('[GeminiService] Server /api/generate-site error:', serverErr);
+  }
+
+  const effectiveKey = (apiKey || getStoredGeminiKey()).trim();
+  if (!effectiveKey) {
+    return {
+      success: false,
+      isRealHeritageSite: false,
+      error: 'Gemini service is connecting. Please wait a moment or ensure GEMINI_API_KEY is configured.'
     };
   }
 
@@ -676,11 +712,97 @@ export async function identifyHeritageImage(
     };
   }
 
-  const effectiveKey = (apiKey || getStoredGeminiKey()).trim();
-  const isDemoMode = StorageService.isDemoMode();
+  // 1. Try server-side identification endpoint first (uses Render GEMINI_API_KEY securely)
+  try {
+    const serverRes = await fetch('/api/identify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        image: imageDataUrl,
+        lang: preferredLang,
+      }),
+    });
 
-  // If in Demo Mode or no API key is provided, return realistic sample recognition response
-  if (isDemoMode || !effectiveKey) {
+    if (serverRes.ok) {
+      const serverData = await serverRes.json();
+      if (serverData.success && serverData.bestMatchName) {
+        const confidence = Math.max(0, Math.min(1, typeof serverData.confidence === 'number' ? serverData.confidence : 0.5));
+        const bestMatchName = typeof serverData.bestMatchName === 'string' ? serverData.bestMatchName.trim() : 'Unknown';
+        const reasoning = typeof serverData.reasoning === 'string' ? serverData.reasoning : 'Visual attributes analyzed.';
+        const alternativeMatches = Array.isArray(serverData.alternativeMatches) ? serverData.alternativeMatches : [];
+        const isHeritageSite = Boolean(serverData.isHeritageSite) && bestMatchName.toLowerCase() !== 'unknown' && confidence >= 0.50;
+
+        let matchedSite: HeritageSite | undefined;
+        let isSupported = false;
+
+        if (isHeritageSite) {
+          const matchInfo = matchSupportedSite(bestMatchName);
+          if (matchInfo.isSupported && matchInfo.site) {
+            matchedSite = matchInfo.site;
+            isSupported = true;
+          } else {
+            try {
+              const genResult = await generateHeritageSiteFromSearch(bestMatchName, undefined, preferredLang);
+              if (genResult.success && genResult.site) {
+                matchedSite = genResult.site;
+                isSupported = true;
+              }
+            } catch (genErr) {
+              console.warn('Auto-generation for monument failed:', genErr);
+            }
+          }
+        }
+
+        const needsVerification = serverData.needsVerification ?? (confidence < 0.7 || !matchedSite);
+        const validatedData: GeminiRawIdentification = {
+          bestMatchName: matchedSite ? matchedSite.name : bestMatchName,
+          confidence,
+          reasoning,
+          alternativeMatches,
+          isSupportedDelhiSite: Boolean(matchedSite),
+          needsVerification,
+        };
+
+        const isHighConfidenceMatch = Boolean(matchedSite) && confidence >= 0.55;
+        const fullResult: IdentificationResult = {
+          isIdentified: isHighConfidenceMatch,
+          siteId: matchedSite?.id || undefined,
+          site: matchedSite || undefined,
+          confidenceScore: confidence,
+          detectedName: matchedSite
+            ? (preferredLang === 'hi' ? matchedSite.hindiName : matchedSite.name)
+            : (preferredLang === 'hi' ? 'अज्ञात स्मारक / दृश्य' : bestMatchName),
+          architecturalElements: matchedSite
+            ? [matchedSite.architecturalStyle, reasoning]
+            : [reasoning],
+          historicalEra: matchedSite?.builtYear || 'Undetermined',
+          customGeminiInsight: reasoning,
+          alternativeMatches,
+          isSupportedDelhiSite: Boolean(matchedSite),
+          needsVerification,
+          uploadedImageUrl: imageDataUrl,
+          analyzedAt: new Date().toISOString(),
+          isFallbackOrUnknown: !isHighConfidenceMatch,
+          isDemoFallback: false,
+        };
+
+        return {
+          success: true,
+          data: validatedData,
+          matchedSite,
+          fullResult,
+          isDemoFallback: false,
+        };
+      }
+    }
+  } catch (serverErr) {
+    console.warn('[GeminiService] Server /api/identify error, checking client key:', serverErr);
+  }
+
+  const effectiveKey = (apiKey || getStoredGeminiKey()).trim();
+
+  // If no server key and no client key, fallback gracefully
+  if (!effectiveKey) {
     return getDemoFallbackIdentification(imageDataUrl, preferredLang);
   }
 

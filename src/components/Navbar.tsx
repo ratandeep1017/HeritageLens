@@ -40,9 +40,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentLang, onLangChange }) => 
     },
     {
       to: '/profile',
-      labelEn: 'Settings',
-      labelHi: 'सेटिंग्स',
-      icon: Key,
+      labelEn: 'Admin Portal',
+      labelHi: 'प्रशासन',
+      icon: ShieldCheck,
       id: 'nav-profile'
     }
   ];

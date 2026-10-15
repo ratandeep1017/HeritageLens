@@ -141,12 +141,7 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
 
   const handleAnalyzeClick = () => {
     if (!selectedImage) return;
-    const apiKey = getStoredGeminiKey();
-    if (isDemoMode || !apiKey) {
-      executeIdentification();
-      return;
-    }
-    executeIdentification(apiKey);
+    executeIdentification();
   };
 
   const executeIdentification = async (apiKey?: string) => {
@@ -668,16 +663,7 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
         </div>
       )}
 
-      {/* API Key Modal */}
-      <ApiKeyPromptModal
-        isOpen={showKeyModal}
-        onClose={() => setShowKeyModal(false)}
-        onContinueDemo={() => {
-          setShowKeyModal(false);
-          executeIdentification();
-        }}
-        currentLang={currentLang}
-      />
+
 
       {/* 4. VISIBLE "DELHI COLLECTION" PILOT SECTION */}
       <section className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex flex-col gap-6">
