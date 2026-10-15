@@ -162,13 +162,23 @@ If and ONLY IF it is a real physical landmark/monument, return:
   "isRealHeritageSite": true,
   "name": "Full English Name",
   "hindiName": "हिन्दी नाम",
+  "state": "Official Indian State or Union Territory (e.g. 'Punjab', 'Uttar Pradesh', 'Rajasthan', 'Delhi', 'Karnataka', 'Maharashtra', 'Tamil Nadu', 'West Bengal')",
+  "hindiState": "राज्य का नाम हिंदी में (जैसे 'पंजाब', 'उत्तर प्रदेश', 'राजस्थान', 'दिल्ली', 'कर्नाटक')",
+  "city": "City or District (e.g. 'Amritsar', 'Agra', 'Jaipur', 'Noida', 'New Delhi', 'Mumbai')",
+  "hindiCity": "शहर या जिले का नाम हिंदी में",
+  "coordinates": {
+    "lat": 31.6200,
+    "lng": 74.8765
+  },
+  "latitude": 31.6200,
+  "longitude": 74.8765,
   "shortDescription": "2-3 sentences overview in English",
   "hindiShortDescription": "2-3 sentences overview in Hindi",
   "fullHistory": "Comprehensive 3-4 paragraph historical narrative in English",
   "hindiFullHistory": "Comprehensive historical narrative in Hindi",
   "builtYear": "e.g. 1648 CE or 14th Century",
   "builtBy": "e.g. Shah Jahan or Ancient rulers",
-  "architecturalStyle": "e.g. Indo-Islamic Mughal or Nagara Temple Style",
+  "architecturalStyle": "e.g. Indo-Islamic Mughal or Sikh Gurudwara Style or Nagara Temple Style",
   "culturalSignificance": "Detailed cultural and spiritual significance in English",
   "hindiCulturalSignificance": "Cultural significance in Hindi",
   "interestingFacts": ["fact 1", "fact 2", "fact 3"],
@@ -176,9 +186,9 @@ If and ONLY IF it is a real physical landmark/monument, return:
   "folkloreOrLegends": ["folklore 1", "folklore 2"],
   "hindiFolkloreOrLegends": ["लोककथा 1", "लोककथा 2"],
   "travelTips": {
-    "timings": "e.g. Sunrise to Sunset (Closed Mondays)",
-    "entryFee": "e.g. ₹50 (Indians), ₹600 (Foreigners)",
-    "nearestMetro": "e.g. Chandni Chowk Metro (Yellow Line)",
+    "timings": "e.g. 4:00 AM – 10:00 PM or Sunrise to Sunset",
+    "entryFee": "e.g. Free Entry or ₹50 (Indians), ₹600 (Foreigners)",
+    "nearestMetro": "e.g. Amritsar Railway Station / Metro (if applicable) or nearest transit",
     "bestTimeToVisit": "e.g. October to March",
     "rules": ["rule 1", "rule 2"]
   },
@@ -214,6 +224,19 @@ If and ONLY IF it is a real physical landmark/monument, return:
         modelUsed: model,
       };
     }
+  }
+
+  // Normalize coordinates and state
+  const lat = typeof parsed.latitude === 'number' ? parsed.latitude : parsed.coordinates?.lat;
+  const lng = typeof parsed.longitude === 'number' ? parsed.longitude : parsed.coordinates?.lng;
+  if (typeof lat === 'number' && typeof lng === 'number') {
+    parsed.latitude = lat;
+    parsed.longitude = lng;
+    parsed.coordinates = { lat, lng };
+  }
+
+  if (!parsed.state) {
+    parsed.state = 'Delhi';
   }
 
   return {

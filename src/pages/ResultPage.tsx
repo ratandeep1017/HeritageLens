@@ -175,8 +175,8 @@ export const ResultPage: React.FC<ResultPageProps> = ({ currentLang }) => {
 
   // Derived Category and City metadata
   const siteCategory = site?.tags?.[0] || 'Monument';
-  const siteCity = 'Delhi';
-  const siteArea = site?.travelTips?.nearestMetro || 'Delhi, India';
+  const siteCity = site?.city || site?.state || 'India';
+  const siteArea = site?.travelTips?.nearestMetro || (site?.city ? `${site.city}, ${site?.state || 'India'}` : (site?.state ? `${site.state}, India` : 'India'));
 
   const handleShare = () => {
     if (navigator.clipboard) {
@@ -204,8 +204,8 @@ export const ResultPage: React.FC<ResultPageProps> = ({ currentLang }) => {
             </h2>
             <p className="text-xs sm:text-sm text-[#5C544E] leading-relaxed">
               {currentLang === 'en'
-                ? `No heritage record was found matching the identifier "${missingSiteId}". The requested monument may have moved or is not yet part of our 10 verified Delhi sites.`
-                : `पहचानकर्ता "${missingSiteId}" से मेल खाता कोई रिकॉर्ड नहीं मिला। यह स्मारक अभी हमारे 10 समर्थित दिल्ली स्मारकों में शामिल नहीं है।`}
+                ? `No heritage record was found matching the identifier "${missingSiteId}". The requested monument may have moved or is not yet part of our verified heritage catalog.`
+                : `पहचानकर्ता "${missingSiteId}" से मेल खाता कोई रिकॉर्ड नहीं मिला। यह स्मारक अभी हमारे प्रमाणित धरोहर कैटलॉग में शामिल नहीं है।`}
             </p>
           </div>
 
@@ -215,8 +215,8 @@ export const ResultPage: React.FC<ResultPageProps> = ({ currentLang }) => {
               <span className="font-bold">{currentLang === 'en' ? 'What to do next: ' : 'आगे क्या करें: '}</span>
               <span className="text-[#5C544E]">
                 {currentLang === 'en'
-                  ? 'Browse the 10 verified Delhi pilot monuments in the Explore directory or upload a new photo.'
-                  : 'एक्सप्लोर सूची में 10 समर्थित दिल्ली स्मारक देखें या नई तस्वीर अपलोड करें।'}
+                  ? 'Browse verified monuments across Indian states in the Explore directory or discover a new site.'
+                  : 'एक्सप्लोर सूची में विभिन्न राज्यों के प्रमाणित स्मारक देखें या नया स्थल खोजें।'}
               </span>
             </div>
           </div>
@@ -227,7 +227,7 @@ export const ResultPage: React.FC<ResultPageProps> = ({ currentLang }) => {
               className="px-6 py-3 bg-[#2C4A3E] hover:bg-[#223930] text-white text-xs font-bold rounded-xl transition-colors shadow-2xs flex items-center gap-2"
             >
               <Compass className="w-4 h-4" />
-              <span>{currentLang === 'en' ? 'Explore 10 Delhi Sites' : '10 दिल्ली स्मारक देखें'}</span>
+              <span>{currentLang === 'en' ? 'Explore Heritage Catalog' : 'धरोहर कैटलॉग देखें'}</span>
             </Link>
             <Link
               to="/"
@@ -283,7 +283,7 @@ export const ResultPage: React.FC<ResultPageProps> = ({ currentLang }) => {
             className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#8C8276] hover:text-[#C05E42] transition-colors"
           >
             <Compass className="w-3.5 h-3.5" />
-            <span>{currentLang === 'en' ? 'Explore Delhi Sites' : 'दिल्ली धरोहर देखें'}</span>
+            <span>{currentLang === 'en' ? 'Explore Heritage Catalog' : 'धरोहर कैटलॉग देखें'}</span>
           </Link>
         </div>
 
@@ -342,7 +342,7 @@ export const ResultPage: React.FC<ResultPageProps> = ({ currentLang }) => {
                   <span className="px-3.5 py-1 rounded-full bg-[#F3EEE7] border border-[#E8E2D9] text-[#5C544E] text-xs font-bold">
                     {isUnclearImage
                       ? (currentLang === 'en' ? 'Image Quality Unclear' : 'छवि स्पष्ट नहीं है')
-                      : (currentLang === 'en' ? 'Site Outside Delhi Pilot' : 'दिल्ली पायलट के बाहर का स्मारक')}
+                      : (currentLang === 'en' ? 'Place Outside Verified Catalog' : 'कैटलॉग के बाहर का स्थल')}
                   </span>
                 </div>
 
@@ -350,7 +350,7 @@ export const ResultPage: React.FC<ResultPageProps> = ({ currentLang }) => {
                   <h2 className="text-2xl sm:text-3xl font-bold font-serif-heritage text-[#1A1A1A]">
                     {isUnclearImage
                       ? (currentLang === 'en' ? 'Photo Unclear for Reliable Matching' : 'सटीक पहचान के लिए फोटो स्पष्ट नहीं है')
-                      : (currentLang === 'en' ? 'Site Not Among 10 Supported Delhi Sites' : 'यह स्थल 10 समर्थित दिल्ली स्मारकों में शामिल नहीं है')}
+                      : (currentLang === 'en' ? 'Place Not Yet in Verified Catalog' : 'यह स्थल अभी प्रमाणित कैटलॉग में शामिल नहीं है')}
                   </h2>
                   <p className="text-xs sm:text-sm text-[#5C544E] leading-relaxed max-w-lg mx-auto">
                     {isUnclearImage
@@ -358,8 +358,8 @@ export const ResultPage: React.FC<ResultPageProps> = ({ currentLang }) => {
                           ? 'The photo is blurry, backlit, or too distant to recognize distinct architectural motifs. AI requires clear visual markers (such as arches, domes, or engravings).'
                           : 'तस्वीर धुंधली, कम रोशनी वाली या बहुत दूर से ली गई प्रतीत होती है। एआई को स्पष्ट वास्तुकला आकृतियों की आवश्यकता होती है।'))
                       : (result.customGeminiInsight || (currentLang === 'en'
-                          ? 'HeritageLens AI currently supports 10 verified Delhi heritage monuments (Red Fort, Qutub Minar, Humayun’s Tomb, Bangla Sahib, India Gate, Lotus Temple, Purana Qila, Jama Masjid, Sis Ganj Sahib, Agrasen ki Baoli).'
-                          : 'हेरिटेज लेंस एआई वर्तमान में दिल्ली के 10 प्रमाणित स्मारकों (लाल किला, कुतुब मीनार, हुमायूं का मक़बरा, बंगला साहिब, आदि) का समर्थन करता है।'))
+                          ? 'You can search for this place on the home screen to automatically generate and add a full AI verified dossier to your state catalog.'
+                          : 'आप इस स्थल को होम स्क्रीन पर खोज सकते हैं ताकि इसे स्वचालित रूप से तैयार कर आपके राज्य कैटलॉग में जोड़ा जा सके।'))
                     }
                   </p>
                 </div>
@@ -408,8 +408,8 @@ export const ResultPage: React.FC<ResultPageProps> = ({ currentLang }) => {
                       </>
                     ) : (
                       <>
-                        <li>{currentLang === 'en' ? 'Select and explore one of the 10 featured Delhi monuments.' : '10 समर्थित दिल्ली स्मारकों में से किसी एक को चुनें और देखें।'}</li>
-                        <li>{currentLang === 'en' ? 'Check our Explore directory for full historical records and nearby places.' : 'पूरे ऐतिहासिक रिकॉर्ड और आसपास के स्थानों के लिए एक्सप्लोर निर्देशिका देखें।'}</li>
+                        <li>{currentLang === 'en' ? 'Select and explore verified monuments across Indian states in the catalog.' : 'कैटलॉग में विभिन्न राज्यों के प्रमाणित स्मारकों में से किसी एक को चुनें और देखें।'}</li>
+                        <li>{currentLang === 'en' ? 'Check our Explore directory or search by name to discover and add new places.' : 'नए स्थलों को खोजने और जोड़ने के लिए एक्सप्लोर निर्देशिका देखें या नाम से खोजें।'}</li>
                       </>
                     )}
                   </ul>
@@ -868,6 +868,10 @@ export const ResultPage: React.FC<ResultPageProps> = ({ currentLang }) => {
                 siteName={currentLang === 'hi' ? site.hindiName : site.name}
                 category={siteCategory}
                 areaName={siteArea}
+                latitude={site.coordinates?.lat || site.latitude}
+                longitude={site.coordinates?.lng || site.longitude}
+                state={site.state}
+                nearbyAttractions={site.nearbyAttractions}
                 currentLang={currentLang}
               />
             </motion.div>

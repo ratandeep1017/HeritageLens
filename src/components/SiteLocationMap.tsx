@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapPin, Navigation, ExternalLink, AlertCircle, Compass } from 'lucide-react';
+import { resolveSiteCoordinates } from '../utils/geoCoordinates';
 
 interface SiteLocationMapProps {
   latitude?: number;
@@ -9,6 +10,7 @@ interface SiteLocationMapProps {
   siteName: string;
   areaName?: string;
   category?: string;
+  state?: string;
   currentLang: 'en' | 'hi';
 }
 
@@ -18,6 +20,7 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
   siteName,
   areaName,
   category,
+  state,
   currentLang
 }) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
@@ -25,13 +28,14 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
   const [mapError, setMapError] = useState<boolean>(false);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
 
-  const hasValidCoordinates =
-    typeof latitude === 'number' &&
-    typeof longitude === 'number' &&
-    !isNaN(latitude) &&
-    !isNaN(longitude) &&
-    latitude !== 0 &&
-    longitude !== 0;
+  // Auto-resolve coordinates from props or geographic monument/city registry across India
+  const resolvedCoords = (typeof latitude === 'number' && typeof longitude === 'number' && !isNaN(latitude) && !isNaN(longitude) && latitude !== 0 && longitude !== 0)
+    ? { lat: latitude, lng: longitude }
+    : resolveSiteCoordinates({ name: siteName, state, latitude, longitude });
+
+  const effectiveLat = resolvedCoords?.lat;
+  const effectiveLng = resolvedCoords?.lng;
+  const hasValidCoordinates = typeof effectiveLat === 'number' && typeof effectiveLng === 'number' && effectiveLat !== 0;
 
   useEffect(() => {
     if (!hasValidCoordinates || !mapContainerRef.current) {
@@ -46,22 +50,33 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
       }
 
       const map = L.map(mapContainerRef.current, {
-        center: [latitude!, longitude!],
+        center: [effectiveLat!, effectiveLng!],
         zoom: 15,
-        zoomControl: false, // We will add zoom control with proper positioning
+        zoomControl: false,
         attributionControl: true,
-        scrollWheelZoom: false // Don't hijack user page scrolling
+        scrollWheelZoom: false
       });
 
       mapInstanceRef.current = map;
 
-      // Add high-reliability CartoDB Voyager / Positron Tile Layer (fast, beautiful heritage aesthetic, no 403 blocks)
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      // Add high-reliability CartoDB Voyager Tile Layer with OpenStreetMap fallback
+      const primaryTile = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         maxZoom: 19,
         subdomains: 'abcd',
         attribution:
           '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener noreferrer">CARTO</a>'
-      }).addTo(map);
+      });
+
+      primaryTile.on('tileerror', () => {
+        try {
+          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+          }).addTo(map);
+        } catch (_) {}
+      });
+
+      primaryTile.addTo(map);
 
       // Add Zoom Control on top right
       L.control.zoom({ position: 'topright' }).addTo(map);
@@ -87,19 +102,19 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
         popupAnchor: [0, -18]
       });
 
-      const marker = L.marker([latitude!, longitude!], { icon: customIcon }).addTo(map);
+      const marker = L.marker([effectiveLat!, effectiveLng!], { icon: customIcon }).addTo(map);
 
       // Popup with verified site details
       const popupHtml = `
         <div style="font-family: inherit; padding: 4px; max-width: 220px;">
           <div style="font-size: 9px; font-weight: 700; text-transform: uppercase; color: #C05E42; letter-spacing: 0.5px; margin-bottom: 2px;">
-            ${category || 'Monument'} • Delhi
+            ${category || 'Monument'} • ${state || areaName || 'India'}
           </div>
           <div style="font-size: 13px; font-weight: 700; color: #1A1A1A; line-height: 1.2; margin-bottom: 4px;">
             ${siteName}
           </div>
           <div style="font-size: 11px; color: #5C544E; line-height: 1.3;">
-            ${areaName || 'Delhi, India'}
+            ${areaName || `${state || 'India'}`}
           </div>
         </div>
       `;
@@ -108,12 +123,18 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
       setIsLoaded(true);
       setMapError(false);
 
-      // Ensure map tiles layout properly once DOM is steady
-      setTimeout(() => {
-        if (mapInstanceRef.current) {
-          mapInstanceRef.current.invalidateSize();
-        }
-      }, 300);
+      // Multi-stage invalidateSize to ensure tiles render immediately when DOM container mounts
+      const t1 = setTimeout(() => {
+        if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
+      }, 150);
+      const t2 = setTimeout(() => {
+        if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
+      }, 500);
+
+      return () => {
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
     } catch (err) {
       console.error('Error initializing Leaflet map:', err);
       setMapError(true);
@@ -125,19 +146,19 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
         mapInstanceRef.current = null;
       }
     };
-  }, [latitude, longitude, siteName, areaName, category, hasValidCoordinates]);
+  }, [latitude, longitude, siteName, areaName, category, state, hasValidCoordinates, effectiveLat, effectiveLng]);
 
   // Recenter helper
   const handleRecenter = () => {
     if (mapInstanceRef.current && hasValidCoordinates) {
-      mapInstanceRef.current.setView([latitude!, longitude!], 15, { animate: true });
+      mapInstanceRef.current.setView([effectiveLat!, effectiveLng!], 15, { animate: true });
     }
   };
 
   // Google Maps External Directions Link
   const externalMapUrl = hasValidCoordinates
-    ? `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${siteName} Delhi`)}`;
+    ? `https://www.google.com/maps/search/?api=1&query=${effectiveLat},${effectiveLng}`
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${siteName} ${state || ''} India`)}`;
 
   if (!hasValidCoordinates || mapError) {
     return (

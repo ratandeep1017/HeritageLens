@@ -2,12 +2,35 @@ import { useState, useEffect } from 'react';
 import { DELHI_HERITAGE_SITES } from '../data/heritageSites';
 import { HeritageSite } from '../types';
 import { isMonumentMatch } from '../utils/monumentMatcher';
+import { resolveSiteCoordinates, inferStateFromText } from '../utils/geoCoordinates';
 
 const STORAGE_KEY = 'heritagelens_custom_heritage_sites_v2';
 const EVENT_NAME = 'heritagelens_heritage_data_updated';
 
 // Relative API Base URL
 const API_BASE = '';
+
+/**
+ * Enriches any heritage site record with real state and geographic coordinates if missing.
+ */
+function enrichSiteWithLocation(s: HeritageSite): HeritageSite {
+  if (!s) return s;
+  const enriched = { ...s };
+  if (!enriched.state) {
+    const inferred = inferStateFromText(`${enriched.name} ${enriched.shortDescription || ''} ${(enriched.tags || []).join(' ')}`);
+    enriched.state = inferred.state;
+    enriched.hindiState = enriched.hindiState || inferred.hindiState;
+  }
+  if (!enriched.coordinates || typeof enriched.latitude !== 'number') {
+    const coords = resolveSiteCoordinates(enriched);
+    if (coords) {
+      enriched.coordinates = coords;
+      enriched.latitude = coords.lat;
+      enriched.longitude = coords.lng;
+    }
+  }
+  return enriched;
+}
 
 /**
  * Service to manage the editable catalog of heritage sites.
@@ -113,14 +136,14 @@ export const HeritageDataStore = {
               mergedMap.set(s.id.toLowerCase(), { ...existing, ...s });
             }
           }
-          return Array.from(mergedMap.values());
+          return Array.from(mergedMap.values()).map(enrichSiteWithLocation);
         }
       }
     } catch (error) {
       console.warn('Failed to parse customized heritage sites from localStorage:', error);
     }
-    // Return deep copy of default sites
-    return baseSites;
+    // Return deep copy of default sites with location enrichment
+    return baseSites.map(enrichSiteWithLocation);
   },
 
   /**
@@ -182,9 +205,11 @@ export const HeritageDataStore = {
   async addNewSite(newSite: HeritageSite): Promise<{ success: boolean; site: HeritageSite; isAlreadyListed?: boolean }> {
     const sites = this.getAllSites();
 
+    const enrichedInput = enrichSiteWithLocation(newSite);
+
     // Check if place already exists by ID OR by fuzzy monument name/alias
     const existingIndex = sites.findIndex(
-      (s) => (newSite.id && s.id.toLowerCase() === newSite.id.toLowerCase()) || isMonumentMatch(newSite.name, s)
+      (s) => (enrichedInput.id && s.id.toLowerCase() === enrichedInput.id.toLowerCase()) || isMonumentMatch(enrichedInput.name, s)
     );
 
     if (existingIndex >= 0) {
@@ -192,9 +217,9 @@ export const HeritageDataStore = {
       // Monument is already listed in catalog! Merge to preserve canonical ID and update image/details
       const merged: HeritageSite = {
         ...existing,
-        ...newSite,
-        imageUrl: (newSite.imageUrl && newSite.imageUrl.trim()) || existing.imageUrl,
-        imageAlt: newSite.imageAlt || existing.imageAlt,
+        ...enrichedInput,
+        imageUrl: (enrichedInput.imageUrl && enrichedInput.imageUrl.trim()) || existing.imageUrl,
+        imageAlt: enrichedInput.imageAlt || existing.imageAlt,
         id: existing.id,
       };
       sites[existingIndex] = merged;
@@ -214,11 +239,11 @@ export const HeritageDataStore = {
     }
 
     // Ensure clean ID for truly new monuments
-    let finalId = newSite.id?.trim() || `site-${Date.now()}`;
+    let finalId = enrichedInput.id?.trim() || `site-${Date.now()}`;
     finalId = finalId.toLowerCase().replace(/[^a-z0-9-_]/g, '-');
 
     const completeSite: HeritageSite = {
-      ...newSite,
+      ...enrichedInput,
       id: finalId,
     };
 

@@ -462,9 +462,19 @@ export async function generateHeritageSiteFromSearch(
             );
           } catch {}
 
+          const sLat = typeof serverData.site.latitude === 'number' ? serverData.site.latitude : serverData.site.coordinates?.lat;
+          const sLng = typeof serverData.site.longitude === 'number' ? serverData.site.longitude : serverData.site.coordinates?.lng;
+
           const completeSite: HeritageSite = {
             ...serverData.site,
             id: (serverData.site.id || cleanQuery.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')),
+            state: serverData.site.state || 'Delhi',
+            hindiState: serverData.site.hindiState,
+            city: serverData.site.city,
+            hindiCity: serverData.site.hindiCity,
+            latitude: sLat,
+            longitude: sLng,
+            coordinates: typeof sLat === 'number' && typeof sLng === 'number' ? { lat: sLat, lng: sLng } : undefined,
             imageUrl: resolvedImage || serverData.site.imageUrl || 'https://images.unsplash.com/photo-1592635196078-9fdc757f27f4?auto=format&fit=crop&w=1200&q=80',
           };
 
@@ -519,14 +529,24 @@ SCHEMA REQUIREMENTS FOR ACCEPTED SITES:
 {
   "isRealHeritageSite": true,
   "id": "kebab-case-unique-id",
-  "name": "Full English Name (e.g., 'ISKCON Temple Noida' or 'Fakir Chand Book Store')",
-  "hindiName": "पूर्ण हिंदी नाम (देवनागरी लिपि में, जैसे 'इस्कॉन मंदिर नोएडा' या 'फ़कीर चंद बुक स्टोर')",
+  "name": "Full English Name (e.g., 'Golden Temple' or 'ISKCON Temple Noida')",
+  "hindiName": "पूर्ण हिंदी नाम (देवनागरी लिपि में, जैसे 'स्वर्ण मंदिर' या 'इस्कॉन मंदिर')",
+  "state": "Official Indian State or UT (e.g., 'Punjab', 'Uttar Pradesh', 'Rajasthan', 'Delhi', 'Karnataka', 'Maharashtra')",
+  "hindiState": "राज्य का नाम हिंदी में (जैसे 'पंजाब', 'उत्तर प्रदेश', 'राजस्थान')",
+  "city": "City or District (e.g., 'Amritsar', 'Noida', 'Agra', 'Jaipur')",
+  "hindiCity": "शहर का नाम हिंदी में",
+  "coordinates": {
+    "lat": 31.6200,
+    "lng": 74.8765
+  },
+  "latitude": 31.6200,
+  "longitude": 74.8765,
   "shortDescription": "1-2 sentence English summary of what this place is, its atmosphere, and why it is famous.",
   "hindiShortDescription": "1-2 वाक्यों में हिंदी संक्षिप्त विवरण।",
   "fullHistory": "2-4 sentence engaging background/history: when it was established/built, who founded/built it, architectural style or heritage charm, cultural significance, and modern-day visitor appeal.",
   "hindiFullHistory": "2-4 वाक्यों में विस्तृत ऐतिहासिक/सांस्कृतिक विवरण।",
-  "builtYear": "e.g. '2014' or 'Established 1951' or 'Mid-17th Century CE' or 'Contemporary'",
-  "builtBy": "e.g. 'ISKCON Foundation' or 'Fakir Chand & Family' or 'Mughal Emperor Shah Jahan'",
+  "builtYear": "e.g. '1577 CE' or '2014' or 'Mid-17th Century CE'",
+  "builtBy": "e.g. 'Guru Ram Das' or 'Mughal Emperor Shah Jahan'",
   "architecturalStyle": "e.g. 'Contemporary Vedic Stone Architecture' or 'Mid-Century Heritage Bookshop' or 'Mughal Architecture' or 'Modern Cultural Complex'",
   "culturalSignificance": "English explanation of cultural, literary, spiritual, or historical significance.",
   "hindiCulturalSignificance": "सांस्कृतिक, साहित्यिक, आध्यात्मिक या ऐतिहासिक महत्व।",
@@ -629,12 +649,22 @@ STRICT CONSTRAINTS:
       parsed.shortDescription || parsed.fullHistory || ''
     );
 
+    const fallbackLat = typeof parsed.latitude === 'number' ? parsed.latitude : parsed.coordinates?.lat;
+    const fallbackLng = typeof parsed.longitude === 'number' ? parsed.longitude : parsed.coordinates?.lng;
+
     const completeSite: HeritageSite = {
       id: finalId,
       name: placeName,
       hindiName: parsed.hindiName || placeName,
-      shortDescription: parsed.shortDescription || `${placeName} is a celebrated landmark and cultural destination in Delhi NCR.`,
-      hindiShortDescription: parsed.hindiShortDescription || `${parsed.hindiName || placeName} दिल्ली-एनसीआर का एक प्रसिद्ध सांस्कृतिक एवं ऐतिहासिक स्थल है।`,
+      state: parsed.state || 'Delhi',
+      hindiState: parsed.hindiState,
+      city: parsed.city,
+      hindiCity: parsed.hindiCity,
+      latitude: fallbackLat,
+      longitude: fallbackLng,
+      coordinates: typeof fallbackLat === 'number' && typeof fallbackLng === 'number' ? { lat: fallbackLat, lng: fallbackLng } : undefined,
+      shortDescription: parsed.shortDescription || `${placeName} is a celebrated landmark and cultural destination in India.`,
+      hindiShortDescription: parsed.hindiShortDescription || `${parsed.hindiName || placeName} भारत का एक प्रसिद्ध सांस्कृतिक एवं ऐतिहासिक स्थल है।`,
       fullHistory: parsed.fullHistory || `${placeName} is a prominent cultural and architectural establishment renowned for its heritage charm, historical importance, and visitor appeal.`,
       hindiFullHistory: parsed.hindiFullHistory || `${parsed.hindiName || placeName} एक प्रमुख सांस्कृतिक एवं स्थापत्य स्थल है जो अपने विरासत महत्व और सांस्कृतिक आकर्षण के लिए जाना जाता है।`,
       builtYear: parsed.builtYear || 'Historical / Modern Landmark',

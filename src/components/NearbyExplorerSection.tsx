@@ -25,6 +25,8 @@ interface NearbyExplorerSectionProps {
   areaName?: string;
   latitude?: number;
   longitude?: number;
+  state?: string;
+  nearbyAttractions?: { name: string; distance: string; description: string }[];
   currentLang: 'en' | 'hi';
 }
 
@@ -35,18 +37,31 @@ export const NearbyExplorerSection: React.FC<NearbyExplorerSectionProps> = ({
   areaName,
   latitude,
   longitude,
+  state,
+  nearbyAttractions,
   currentLang
 }) => {
   const [activeFilter, setActiveFilter] = useState<'all' | 'heritage' | 'food' | 'markets'>('all');
 
-  // Retrieve curated local dataset
+  // Retrieve curated local dataset if available
   const nearbyData = getCuratedNearbyForSite(siteId);
 
   const effectiveLat = latitude || nearbyData?.coordinates.latitude;
   const effectiveLng = longitude || nearbyData?.coordinates.longitude;
-  const effectiveArea = areaName || nearbyData?.coordinates.areaName;
+  const effectiveArea = areaName || nearbyData?.coordinates.areaName || state || 'India';
 
-  const heritageList = nearbyData?.heritagePlaces || [];
+  // If curated Delhi list exists, use it; otherwise use AI-generated nearbyAttractions
+  const fallbackHeritageList = (nearbyAttractions || []).map((att, idx) => ({
+    id: `dyn-nearby-${idx}`,
+    name: att.name,
+    distance: att.distance || '1 km',
+    category: 'Landmark',
+    description: att.description || `Historic and cultural landmark in the vicinity of ${siteName}.`
+  }));
+
+  const heritageList = (nearbyData?.heritagePlaces && nearbyData.heritagePlaces.length > 0)
+    ? nearbyData.heritagePlaces
+    : fallbackHeritageList;
   const foodList = nearbyData?.foodSpots || [];
   const marketList = nearbyData?.artisanMarkets || [];
 
@@ -139,6 +154,7 @@ export const NearbyExplorerSection: React.FC<NearbyExplorerSectionProps> = ({
           siteName={siteName}
           areaName={effectiveArea}
           category={category}
+          state={state}
           currentLang={currentLang}
         />
       </div>

@@ -63,11 +63,22 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ currentLang, onLangCha
   // Local collection search/filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [selectedState, setSelectedState] = useState<string>('all');
+
+  // Compute states represented in the catalog
+  const stateCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    heritageSites.forEach((s) => {
+      const st = (s.state || 'Delhi').trim();
+      counts.set(st, (counts.get(st) || 0) + 1);
+    });
+    return counts;
+  }, [heritageSites]);
 
   // Loading animation step simulator
   const loadingSteps = useMemo(() => [
     currentLang === 'en' ? 'Scanning architectural geometry & motifs...' : 'वास्तुशिल्प बनावट और रूपांकनों की स्कैनिंग...',
-    currentLang === 'en' ? 'Matching against ASI & UNESCO Delhi archives...' : 'एएसआई और यूनेस्को दिल्ली अभिलेखागार से मिलान...',
+    currentLang === 'en' ? 'Matching against ASI & UNESCO national heritage archives...' : 'एएसआई और यूनेस्को राष्ट्रीय धरोहर अभिलेखागार से मिलान...',
     currentLang === 'en' ? 'Compiling verified historical narrative...' : 'प्रमाणित ऐतिहासिक विवरण संकलित किया जा रहा है...'
   ], [currentLang]);
 
@@ -138,6 +149,15 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ currentLang, onLangCha
     const query = searchQuery.trim().toLowerCase();
 
     return heritageSites.filter((site) => {
+      // 1. State filter
+      const siteState = (site.state || 'Delhi').trim().toLowerCase();
+      const matchesState =
+        selectedState === 'all' ||
+        siteState === selectedState.toLowerCase();
+
+      if (!matchesState) return false;
+
+      // 2. Category filter
       const matchesCategory =
         selectedCategory === 'all' ||
         (site.tags && site.tags.some(t => t.toLowerCase() === selectedCategory.toLowerCase())) ||
@@ -156,7 +176,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ currentLang, onLangCha
 
       return nameMatch || hindiNameMatch || styleMatch || builderMatch || descMatch || tagMatch;
     });
-  }, [heritageSites, searchQuery, selectedCategory]);
+  }, [heritageSites, searchQuery, selectedCategory, selectedState]);
 
   const handleCardClick = (siteId: string) => {
     navigate(`/result?site=${encodeURIComponent(siteId)}`);
@@ -226,8 +246,8 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ currentLang, onLangCha
 
           <p className="text-sm sm:text-base text-[#5C544E] mt-3 mb-8 max-w-xl leading-relaxed">
             {currentLang === 'en'
-              ? 'Capture or upload a photo of any Delhi heritage monument. HeritageLens AI will identify its architectural style, history, and verified cultural story.'
-              : 'दिल्ली के किसी भी ऐतिहासिक स्मारक की फोटो खींचें या अपलोड करें। हेरिटेज लेंस तुरंत उसकी वास्तुकला, इतिहास और कथा प्रस्तुत करेगा।'}
+              ? 'Capture or upload a photo of any Indian heritage monument. HeritageLens AI will identify its architectural style, history, and verified cultural story.'
+              : 'भारत के किसी भी ऐतिहासिक स्मारक की फोटो खींचें या अपलोड करें। हेरिटेज लेंस तुरंत उसकी वास्तुकला, इतिहास और कथा प्रस्तुत करेगा।'}
           </p>
 
           <div className="w-full text-left">
@@ -355,8 +375,8 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ currentLang, onLangCha
               <Info className="w-4 h-4 text-[#C05E42] shrink-0" />
               <span>
                 {currentLang === 'en'
-                  ? `Active Catalog: ${heritageSites.length} verified Delhi heritage monuments available with dual-language audio dossiers.`
-                  : `सक्रिय सूची: ${heritageSites.length} प्रमाणित दिल्ली धरोहर स्मारक दोहरी भाषा ऑडियो विवरण के साथ उपलब्ध हैं।`}
+                  ? `Active Catalog: ${heritageSites.length} verified heritage monuments across Indian states available with dual-language audio dossiers.`
+                  : `सक्रिय सूची: ${heritageSites.length} प्रमाणित भारतीय धरोहर स्मारक दोहरी भाषा ऑडियो विवरण के साथ उपलब्ध हैं।`}
               </span>
             </div>
           </div>
@@ -372,15 +392,19 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ currentLang, onLangCha
           <div className="flex flex-col gap-1.5">
             <div className="inline-flex items-center gap-2 self-start px-3 py-1 rounded-full bg-[#2C4A3E]/10 border border-[#2C4A3E]/20 text-[#2C4A3E] text-[11px] font-bold tracking-wide">
               <Building2 className="w-3.5 h-3.5" />
-              <span>{currentLang === 'en' ? `Delhi Heritage Collection (${heritageSites.length} Sites)` : `दिल्ली हेरिटेज संकलन (${heritageSites.length} स्थल)`}</span>
+              <span>
+                {currentLang === 'en'
+                  ? `All-India Heritage Collection (${filteredSites.length} Monuments across ${stateCounts.size} States)`
+                  : `अखिल भारतीय धरोहर संकलन (${filteredSites.length} स्मारक, ${stateCounts.size} राज्य)`}
+              </span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-bold font-serif-heritage text-[#1A1A1A]">
-              {currentLang === 'en' ? 'Or Explore Supported Monuments' : 'या समर्थित स्मारकों का अन्वेषण करें'}
+              {currentLang === 'en' ? 'Explore Monuments by State & Category' : 'राज्य एवं श्रेणी अनुसार स्मारकों का अन्वेषण'}
             </h2>
             <p className="text-xs sm:text-sm text-[#5C544E]">
               {currentLang === 'en'
-                ? 'Browse verified dossiers, visiting timings, architectural details, and cultural histories.'
-                : 'प्रमाणित इतिहास, समय, वास्तुकला और सांस्कृतिक विवरण देखें।'}
+                ? 'Browse verified dossiers, visiting timings, architectural details, and cultural histories across India.'
+                : 'भारत भर के प्रमाणित इतिहास, समय, वास्तुकला और सांस्कृतिक विवरण देखें।'}
             </p>
           </div>
 
@@ -392,7 +416,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ currentLang, onLangCha
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={currentLang === 'en' ? 'Search by name, era, style...' : 'नाम, काल, शैली से खोजें...'}
+              placeholder={currentLang === 'en' ? 'Search by name, state, era...' : 'नाम, राज्य, काल से खोजें...'}
               className="w-full pl-9.5 pr-8 py-2.5 bg-[#F3EEE7] border border-[#E8E2D9] focus:border-[#C05E42] focus:bg-white rounded-xl text-xs text-[#1A1A1A] placeholder-[#8C8276] outline-hidden transition-all shadow-2xs"
             />
             {searchQuery && (
@@ -405,6 +429,46 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ currentLang, onLangCha
               </button>
             )}
           </div>
+        </div>
+
+        {/* State / UT Filters */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
+          <span className="text-[11px] font-bold text-[#8C8276] uppercase tracking-wider flex items-center gap-1 shrink-0 mr-1">
+            <Compass className="w-3.5 h-3.5 text-[#2C4A3E]" />
+            <span>{currentLang === 'en' ? 'State:' : 'राज्य:'}</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedState('all')}
+            className={`min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+              selectedState === 'all'
+                ? 'bg-[#C05E42] text-white shadow-xs'
+                : 'bg-[#F3EEE7] text-[#5C544E] hover:bg-[#E8E2D9] hover:text-[#1A1A1A]'
+            }`}
+          >
+            <span>{currentLang === 'en' ? 'All States' : 'सभी राज्य'}</span>
+            <span className="text-[10px] opacity-80">({heritageSites.length})</span>
+          </button>
+          {Array.from(stateCounts.entries()).map(([st, count]) => {
+            const isActive = selectedState.toLowerCase() === st.toLowerCase();
+            return (
+              <button
+                key={st}
+                type="button"
+                onClick={() => setSelectedState(st)}
+                className={`min-h-[38px] px-3.5 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all cursor-pointer flex items-center gap-1.5 ${
+                  isActive
+                    ? 'bg-[#C05E42] text-white shadow-xs'
+                    : 'bg-[#F3EEE7] text-[#5C544E] hover:bg-[#E8E2D9] hover:text-[#1A1A1A]'
+                }`}
+              >
+                <span>{st}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${isActive ? 'bg-white/20 text-white' : 'bg-black/10 text-[#5C544E]'}`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Category Filters */}
@@ -466,7 +530,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ currentLang, onLangCha
                     {/* Top Badges */}
                     <div className="absolute top-3.5 left-3.5 right-3.5 flex items-center justify-between pointer-events-none">
                       <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold tracking-wide border shadow-2xs backdrop-blur-xs bg-black/60 text-[#D4AF37] border-[#D4AF37]/30">
-                        {site.tags?.[0] || 'Monument'}
+                        {site.state || 'Delhi'} • {site.tags?.[0] || 'Monument'}
                       </span>
                       <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/60 backdrop-blur-xs text-emerald-300 text-[10px] font-bold border border-emerald-500/30">
                         <CheckCircle2 className="w-3 h-3 text-emerald-400" />
@@ -490,7 +554,7 @@ export const ExplorePage: React.FC<ExplorePageProps> = ({ currentLang, onLangCha
                     <div className="space-y-2">
                       <div className="flex items-center gap-1.5 text-xs font-semibold text-[#8C8276]">
                         <MapPin className="w-3.5 h-3.5 text-[#C05E42] shrink-0" />
-                        <span className="line-clamp-1">{site.travelTips?.nearestMetro || 'Delhi, India'}</span>
+                        <span className="line-clamp-1">{site.city ? `${site.city}, ${site.state || 'India'}` : (site.travelTips?.nearestMetro || `${site.state || 'India'}`)}</span>
                       </div>
                       <p className={`text-xs text-[#5C544E] leading-relaxed line-clamp-2 ${currentLang === 'hi' ? 'font-devanagari' : ''}`}>
                         {currentLang === 'hi' ? (site.hindiShortDescription || site.shortDescription) : site.shortDescription}

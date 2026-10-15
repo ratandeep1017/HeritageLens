@@ -4,6 +4,16 @@ export interface HeritageSite {
   id: string;
   name: string;
   hindiName: string;
+  state?: string;
+  hindiState?: string;
+  city?: string;
+  hindiCity?: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
+  latitude?: number;
+  longitude?: number;
   shortDescription: string;
   hindiShortDescription: string;
   fullHistory: string;
