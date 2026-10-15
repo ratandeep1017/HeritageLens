@@ -991,5 +991,11 @@
       "Temple",
       "Architecture"
     ]
+  },
+  {
+    "id": "fakir-chand-book-store",
+    "name": "Fakir Chand & Sons Book Store",
+    "category": "Book Store",
+    "imageUrl": "https://images.unsplash.com/photo-1526243741027-444d633d7365"
   }
 ]

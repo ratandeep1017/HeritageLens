@@ -158,11 +158,11 @@ export const NearbyExplorerSection: React.FC<NearbyExplorerSectionProps> = ({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {heritageList.map((item) => (
               <div
                 key={item.id}
-                className="bg-[#F3EEE7] border border-[#E8E2D9] rounded-2xl p-4 flex flex-col justify-between hover:border-[#C05E42]/40 transition-colors group"
+                className="bg-[#F3EEE7] border border-[#E8E2D9] rounded-2xl p-4 flex flex-col justify-between hover:border-[#C05E42]/40 transition-colors group min-h-[190px]"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -210,11 +210,11 @@ export const NearbyExplorerSection: React.FC<NearbyExplorerSectionProps> = ({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {foodList.map((item) => (
               <div
                 key={item.id}
-                className="bg-[#F3EEE7] border border-[#E8E2D9] rounded-2xl p-4 flex flex-col justify-between hover:border-[#2C4A3E]/40 transition-colors"
+                className="bg-[#F3EEE7] border border-[#E8E2D9] rounded-2xl p-4 flex flex-col justify-between hover:border-[#2C4A3E]/40 transition-colors min-h-[190px]"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2 mb-1">

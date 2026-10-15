@@ -78,11 +78,17 @@ export async function initDatabase() {
         id VARCHAR(120) NOT NULL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         category VARCHAR(100),
-        data JSON NOT NULL,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        data JSON NOT NULL
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
     `);
+
+    // Ensure created_at and updated_at columns exist without crashing
+    try {
+      await pool.query('ALTER TABLE heritage_sites ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP');
+    } catch (_) {}
+    try {
+      await pool.query('ALTER TABLE heritage_sites ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+    } catch (_) {}
 
     console.log('✅ [TiDB Cloud] Table `heritage_sites` verified/ready.');
 
@@ -145,7 +151,7 @@ export async function upsertSiteInDb(site) {
   await pool.query(
     `INSERT INTO heritage_sites (id, name, category, data)
      VALUES (?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE name=VALUES(name), category=VALUES(category), data=VALUES(data), updated_at=CURRENT_TIMESTAMP`,
+     ON DUPLICATE KEY UPDATE name=VALUES(name), category=VALUES(category), data=VALUES(data)`,
     [site.id, site.name || 'Unnamed', site.category || 'Monument', JSON.stringify(site)]
   );
   return site;

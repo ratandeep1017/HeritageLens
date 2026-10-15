@@ -75,6 +75,28 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
   const [isVisualPickerOpen, setIsVisualPickerOpen] = useState(false);
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
+  // Keep aiSearchResult in sync with heritageSites when user updates photo or catalog
+  useEffect(() => {
+    if (aiSearchResult?.site?.id) {
+      const liveSite = heritageSites.find(
+        (s) => s.id.toLowerCase() === aiSearchResult.site!.id.toLowerCase()
+      );
+      if (liveSite && liveSite.imageUrl && liveSite.imageUrl !== aiSearchResult.site.imageUrl) {
+        setAiSearchResult((prev) => {
+          if (!prev || !prev.site) return prev;
+          const updated = {
+            ...prev,
+            site: { ...prev.site, imageUrl: liveSite.imageUrl, imageAlt: liveSite.imageAlt || prev.site.imageAlt },
+          };
+          try {
+            sessionStorage.setItem('heritagelens_last_ai_search_result', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
+      }
+    }
+  }, [heritageSites]);
+
   const triggerToast = (msg: string) => {
     setFeedbackToast(msg);
     setTimeout(() => setFeedbackToast(null), 3500);

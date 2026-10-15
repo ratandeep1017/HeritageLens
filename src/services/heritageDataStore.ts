@@ -43,9 +43,37 @@ export const HeritageDataStore = {
       if (res.ok) {
         const json = await res.json();
         if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(json.data));
+          // Merge server data with current local cache so newly discovered or edited sites are never wiped
+          let localList: HeritageSite[] = [];
+          try {
+            const localStored = localStorage.getItem(STORAGE_KEY);
+            if (localStored) localList = JSON.parse(localStored);
+          } catch {}
+
+          const mergedMap = new Map<string, HeritageSite>();
+          // 1. Populate server data
+          for (const s of json.data) {
+            if (s && s.id) mergedMap.set(s.id.toLowerCase(), s);
+          }
+          // 2. Preserve any local custom sites not yet on server and sync them
+          if (Array.isArray(localList)) {
+            for (const s of localList) {
+              if (s && s.id && !mergedMap.has(s.id.toLowerCase())) {
+                mergedMap.set(s.id.toLowerCase(), s);
+                // Background push to server
+                fetch(`${API_BASE}/api/sites`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(s)
+                }).catch(() => {});
+              }
+            }
+          }
+
+          const finalList = Array.from(mergedMap.values());
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(finalList));
           this.notifySubscribers();
-          return json.data;
+          return finalList;
         }
       }
     } catch (err) {
