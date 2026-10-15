@@ -383,110 +383,148 @@ app.post('/api/upload', async (req, res) => {
   }
 });
 
-// 9. GET live web image search for any monument / place
+// 9. GET live web / Google image search for any monument / place
 app.get('/api/image-search', async (req, res) => {
   try {
-    const query = (req.query.q || '').trim();
-    if (!query) {
+    const rawQuery = (req.query.q || '').trim();
+    if (!rawQuery) {
       return res.status(400).json({ success: false, error: 'Query parameter q is required' });
+    }
+
+    const cleanQuery = rawQuery.replace(/\(.*?\)/g, '').trim() || rawQuery;
+    const queryWords = cleanQuery
+      .toLowerCase()
+      .split(/\s+/)
+      .map((w) => w.replace(/[^a-z0-9]/gi, ''))
+      .filter((w) => w.length > 2 && !['and', 'the', 'for', 'with', 'near', 'from', 'best', 'shop', 'road'].includes(w));
+
+    function isRelevant(title) {
+      if (!title || queryWords.length === 0) return true;
+      const lower = title.toLowerCase();
+      return queryWords.some((w) => lower.includes(w));
     }
 
     const results = [];
 
-    // 1. High-Precision Live Web Image Search (Bing Engine - works reliably on both local and cloud datacenter IPs)
-    try {
-      const bingUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC2`;
-      const bingRes = await fetch(bingUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.9',
-        },
-      });
-
-      if (bingRes.ok) {
-        const text = await bingRes.text();
-        const matches = [...text.matchAll(/class="iusc"[^>]*?m="([^"]+)"/g)];
-        for (let i = 0; i < Math.min(matches.length, 14); i++) {
-          try {
-            const decoded = matches[i][1].replace(/&quot;/g, '"');
-            const item = JSON.parse(decoded);
-            if (item.murl && item.murl.startsWith('http') && !results.some((r) => r.url === item.murl)) {
-              results.push({
-                id: `web-${i}-${Date.now()}`,
-                title: (item.t || query).replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"'),
-                url: item.murl,
-                thumbUrl: (item.turl || item.murl).replace(/&amp;/g, '&'),
-                source: 'Live Web Search',
-              });
-            }
-          } catch (_) {}
-        }
-      }
-    } catch (err) {
-      console.warn('[Image Search] Bing engine search error:', err.message);
-    }
-
-    // 2. Secondary: DuckDuckGo Image Search if needed
-    if (results.length < 8) {
+    // 1. Official Google Custom Search JSON API (if configured in environment)
+    const googleApiKey = (process.env.GOOGLE_SEARCH_API_KEY || '').trim();
+    const googleCx = (process.env.GOOGLE_SEARCH_CX || process.env.GOOGLE_CSE_ID || '').trim();
+    if (googleApiKey && googleCx) {
       try {
-        const tokenRes = await fetch(`https://duckduckgo.com/?q=${encodeURIComponent(query)}&iax=images&ia=images`, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.9',
-          },
-        });
-        const tokenHtml = await tokenRes.text();
-        const vqdMatch = tokenHtml.match(/vqd=([\d-]+)/) || tokenHtml.match(/vqd=["']([^"']+)["']/);
-        const vqd = vqdMatch ? vqdMatch[1] : null;
-
-        if (vqd) {
-          const imgRes = await fetch(`https://duckduckgo.com/i.js?l=us-en&o=json&q=${encodeURIComponent(query)}&vqd=${vqd}&f=,,,`, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-              'Referer': 'https://duckduckgo.com/',
-            },
-          });
-          if (imgRes.ok) {
-            const data = await imgRes.json();
-            if (Array.isArray(data.results)) {
-              for (let i = 0; i < Math.min(data.results.length, 12); i++) {
-                const r = data.results[i];
-                if (r.image && r.image.startsWith('http') && !results.some((x) => x.url === r.image)) {
-                  results.push({
-                    id: `ddg-${i}-${Date.now()}`,
-                    title: r.title || query,
-                    url: r.image,
-                    thumbUrl: r.thumbnail || r.image,
-                    source: 'Live Web Search',
-                  });
-                }
+        const gUrl = `https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(cleanQuery)}&searchType=image&key=${googleApiKey}&cx=${googleCx}&num=10`;
+        const gRes = await fetch(gUrl);
+        if (gRes.ok) {
+          const gData = await gRes.json();
+          if (Array.isArray(gData.items)) {
+            for (let i = 0; i < gData.items.length; i++) {
+              const item = gData.items[i];
+              if (item.link && item.link.startsWith('http') && !results.some((r) => r.url === item.link)) {
+                results.push({
+                  id: `google-${i}-${Date.now()}`,
+                  title: item.title || cleanQuery,
+                  url: item.link,
+                  thumbUrl: item.image?.thumbnailLink || item.link,
+                  source: 'Google Search',
+                });
               }
             }
           }
         }
       } catch (err) {
-        console.warn('[Image Search] DuckDuckGo search error:', err.message);
+        console.warn('[Image Search] Google CSE error:', err.message);
       }
     }
 
-    // 3. Supplementary: Wikipedia Search API
-    if (results.length < 8) {
+    // 2. High-Precision Web Search (Async Content Engine with Strict Relevance Filtering)
+    if (results.length < 15) {
       try {
-        const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=6&prop=pageimages&piprop=original|thumbnail&pithumbsize=800`;
+        const webUrl = `https://www.bing.com/images/async?q=${encodeURIComponent(cleanQuery)}&async=content&first=0&count=35`;
+        const webRes = await fetch(webUrl, {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
+          },
+        });
+
+        if (webRes.ok) {
+          const text = await webRes.text();
+          const matches = [...text.matchAll(/class="iusc"[^>]*?m="([^"]+)"/g)];
+          for (let i = 0; i < matches.length; i++) {
+            try {
+              const decoded = matches[i][1].replace(/&quot;/g, '"');
+              const item = JSON.parse(decoded);
+              const title = (item.t || cleanQuery).replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"');
+
+              // Reject trending pop-culture / unrelated leaks from datacenter IPs
+              if (!isRelevant(title)) continue;
+
+              if (item.murl && item.murl.startsWith('http') && !results.some((r) => r.url === item.murl)) {
+                results.push({
+                  id: `web-${results.length}-${Date.now()}`,
+                  title,
+                  url: item.murl,
+                  thumbUrl: (item.turl || item.murl).replace(/&amp;/g, '&'),
+                  source: 'Google / Web Search',
+                });
+              }
+            } catch (_) {}
+          }
+        }
+      } catch (err) {
+        console.warn('[Image Search] Web engine error:', err.message);
+      }
+    }
+
+    // 3. Wikimedia Commons (File namespace 6: high-res authentic heritage photos)
+    if (results.length < 15) {
+      try {
+        const wcUrl = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(cleanQuery)}&gsrnamespace=6&gsrlimit=10&prop=imageinfo&iiprop=url|size|mime&format=json&origin=*`;
+        const wcRes = await fetch(wcUrl, {
+          headers: { 'User-Agent': 'HeritageLens/1.0 (https://heritagelens.ai; contact@heritagelens.ai)' },
+        });
+        if (wcRes.ok) {
+          const wcData = await wcRes.json();
+          const pages = Object.values(wcData.query?.pages || {});
+          for (const p of pages) {
+            const info = p.imageinfo?.[0];
+            const imgUrl = info?.url;
+            if (imgUrl && typeof imgUrl === 'string' && imgUrl.startsWith('http') && !results.some((r) => r.url === imgUrl)) {
+              const cleanTitle = (p.title || cleanQuery).replace(/^File:/i, '').replace(/\.[a-zA-Z0-9]+$/, '');
+              if (!isRelevant(cleanTitle) && results.length >= 5) continue;
+              results.push({
+                id: `commons-${p.pageid || p.title}`,
+                title: cleanTitle,
+                url: imgUrl,
+                thumbUrl: info.thumburl || imgUrl,
+                source: 'Wikimedia Commons',
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[Image Search] Wikimedia Commons error:', err.message);
+      }
+    }
+
+    // 4. Wikipedia PageImages API
+    if (results.length < 15) {
+      try {
+        const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(cleanQuery)}&gsrlimit=6&prop=pageimages&piprop=original|thumbnail&pithumbsize=800`;
         const wikiRes = await fetch(wikiUrl, {
           headers: { 'User-Agent': 'HeritageLens/1.0 (https://heritagelens.ai; contact@heritagelens.ai)' },
         });
         if (wikiRes.ok) {
           const data = await wikiRes.json();
-          const pages = data.query?.pages || {};
-          for (const p of Object.values(pages)) {
+          const pages = Object.values(data.query?.pages || {});
+          for (const p of pages) {
             const img = p.original?.source || p.thumbnail?.source;
             if (img && typeof img === 'string' && img.startsWith('http') && !results.some((r) => r.url === img)) {
+              if (!isRelevant(p.title) && results.length >= 5) continue;
               results.push({
                 id: `wiki-${p.pageid || p.title}`,
-                title: p.title || query,
+                title: p.title || cleanQuery,
                 url: img.replace(/\/\d+px-/, '/1600px-'),
                 thumbUrl: p.thumbnail?.source || img,
                 source: 'Wikipedia',
@@ -499,9 +537,34 @@ app.get('/api/image-search', async (req, res) => {
       }
     }
 
+    // 5. Openverse Cultural Images API
+    if (results.length < 15) {
+      try {
+        const ovUrl = `https://api.openverse.engineering/v1/images/?q=${encodeURIComponent(cleanQuery)}&page_size=8`;
+        const ovRes = await fetch(ovUrl, { headers: { 'User-Agent': 'HeritageLens/1.0' } });
+        if (ovRes.ok) {
+          const ovData = await ovRes.json();
+          for (const item of ovData.results || []) {
+            if (item.url && item.url.startsWith('http') && !results.some((r) => r.url === item.url)) {
+              if (!isRelevant(item.title) && results.length >= 5) continue;
+              results.push({
+                id: `openverse-${item.id}`,
+                title: item.title || cleanQuery,
+                url: item.url,
+                thumbUrl: item.thumbnail || item.url,
+                source: 'Openverse',
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[Image Search] Openverse error:', err.message);
+      }
+    }
+
     res.json({
       success: true,
-      query,
+      query: cleanQuery,
       count: results.length,
       data: results,
     });

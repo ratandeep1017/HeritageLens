@@ -397,7 +397,7 @@ export const VisualImagePickerModal: React.FC<VisualImagePickerModalProps> = ({
             }`}
           >
             <Search className="w-3.5 h-3.5" />
-            <span>{currentLang === 'en' ? 'Live Web Search' : 'लाइव वेब खोज'}</span>
+            <span>{currentLang === 'en' ? 'Google & Web Search' : 'गूगल और वेब खोज'}</span>
             {searchResults.length > 0 && (
               <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-white/20">
                 {searchResults.length}
