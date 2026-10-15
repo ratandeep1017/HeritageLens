@@ -398,6 +398,7 @@ export interface GenerateSiteResponse {
   site?: HeritageSite;
   error?: string;
   rejectionReason?: string;
+  isAlreadyListed?: boolean;
 }
 
 /**
@@ -446,11 +447,11 @@ export async function generateHeritageSiteFromSearch(
           imageUrl: resolvedImage || serverData.site.imageUrl || 'https://images.unsplash.com/photo-1592635196078-9fdc757f27f4?auto=format&fit=crop&w=1200&q=80',
         };
 
-        await HeritageDataStore.addNewSite(completeSite);
         return {
           success: true,
           isRealHeritageSite: true,
           site: completeSite,
+          isAlreadyListed: Boolean(serverData.isAlreadyListed),
         };
       }
     }
@@ -662,9 +663,6 @@ STRICT CONSTRAINTS:
         ? parsed.tags
         : ['Landmark', 'Delhi NCR', 'Culture', 'Heritage']
     };
-
-    // Auto-save to active catalog and database
-    await HeritageDataStore.addNewSite(completeSite);
 
     return {
       success: true,

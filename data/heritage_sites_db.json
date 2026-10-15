@@ -794,74 +794,6 @@
     ]
   },
   {
-    "id": "fakir-chand-book-store-khan-market",
-    "name": "Fakir Chand Book Store",
-    "hindiName": "फ़कीर चंद बुक स्टोर",
-    "shortDescription": "Established in 1951, Fakir Chand & Sons is one of Delhi's oldest and most beloved independent bookstores, located in the upscale Khan Market. It is celebrated for its nostalgic charm, floor-to-ceiling book stacks, and rich literary legacy.",
-    "hindiShortDescription": "1951 में स्थापित, फ़कीर चंद एंड संस दिल्ली के सबसे पुराने और सबसे पसंदीदा स्वतंत्र बुकस्टोर्स में से एक है, जो शानदार खान मार्केट में स्थित है। यह अपनी पुरानी यादों को ताज़ा करने वाले आकर्षण, फर्श से छत तक किताबों के ढेर और समृद्ध साहित्यिक विरासत के लिए प्रसिद्ध है।",
-    "fullHistory": "The bookstore was founded by Fakir Chand in Peshawar before partition and relocated to Delhi's Khan Market in 1951 when the market itself was newly established. It has been run by multiple generations of the same family, maintaining its original, unpretentious charm amid high-end modern boutiques. Over the decades, it has served as a cultural hub, frequented by legendary authors, prime ministers, diplomats, and avid readers.",
-    "hindiFullHistory": "इस बुकस्टोर की स्थापना विभाजन से पहले पेशावर में फ़कीर चंद द्वारा की गई थी और 1951 में इसे दिल्ली के खान मार्केट में स्थानांतरित कर दिया गया जब यह बाजार नया-नया स्थापित हुआ था। इसे एक ही परिवार की कई पीढ़ियों द्वारा चलाया जा रहा है, जिसने आधुनिक बुटीक के बीच अपने मूल और सादगीपूर्ण आकर्षण को बनाए रखा है। दशकों से, इसने एक सांस्कृतिक केंद्र के रूप में काम किया है, जहाँ प्रसिद्ध लेखक, प्रधान मंत्री, राजनयिक और उत्साही पाठक आते रहे हैं।",
-    "builtYear": "Established 1951",
-    "builtBy": "Fakir Chand",
-    "architecturalStyle": "Mid-Century Heritage Bookshop",
-    "culturalSignificance": "A living testament to Delhi's post-partition cultural and literary renaissance. It represents the resilient spirit of independent bookselling and serves as a beloved community space where authors and readers connect personally with the family-run staff.",
-    "hindiCulturalSignificance": "विभाजन के बाद दिल्ली के सांस्कृतिक और साहित्यिक पुनर्जागरण का एक जीवंत प्रमाण। यह स्वतंत्र पुस्तक बिक्री की लचीली भावना का प्रतिनिधित्व करता है और एक प्रिय सामुदायिक स्थान के रूप में कार्य करता है जहाँ लेखक और पाठक पारिवारिक कर्मचारियों के साथ व्यक्तिगत रूप से जुड़ते हैं।",
-    "interestingFacts": [
-      "It is one of the oldest surviving shops in Khan Market, preserving its heritage layout while surrounding stores modernized.",
-      "Renowned Indian authors like Ruskin Bond, Khushwant Singh, and Arundhati Roy have been frequent visitors or patrons.",
-      "The store does not use a digital catalog; the family members and staff navigate the massive, chaotic stacks purely by memory."
-    ],
-    "hindiInterestingFacts": [
-      "यह खान मार्केट की सबसे पुरानी जीवित दुकानों में से एक है, जिसने आसपास की दुकानों के आधुनिकीकरण के बावजूद अपने मूल लेआउट को सुरक्षित रखा है।",
-      "रस्किन बॉन्ड, खुशवंत सिंह और अरुंधति रॉय जैसे प्रसिद्ध भारतीय लेखक इसके लगातार आगंतुक या संरक्षक रहे हैं।",
-      "दुकान डिजिटल कैटलॉग का उपयोग नहीं करती है; परिवार के सदस्य और कर्मचारी स्मृति के आधार पर ही किताबों के विशाल और अव्यवस्थित ढेर से पुस्तकें खोज लेते हैं।"
-    ],
-    "folkloreOrLegends": [
-      "It is a cherished tradition among Delhi's bibliophiles to visit Fakir Chand not just to buy books, but to engage in warm literary conversations with the current caretakers (the Bahri/Marwah family), who treat customers like personal guests."
-    ],
-    "hindiFolkloreOrLegends": [
-      "दिल्ली के पुस्तक प्रेमियों के बीच न केवल किताबें खरीदने के लिए, बल्कि वर्तमान संरक्षकों (बहरी/मरवाह परिवार) के साथ गर्मजोशी से साहित्यिक बातचीत करने के लिए फ़कीर चंद जाने की एक प्यारी परंपरा है, जो ग्राहकों के साथ व्यक्तिगत मेहमानों की तरह व्यवहार करते हैं।"
-    ],
-    "travelTips": {
-      "timings": "11:00 AM – 8:00 PM (Open Daily)",
-      "entryFee": "Free Entry",
-      "nearestMetro": "Khan Market Metro Station (Violet Line)",
-      "bestTimeToVisit": "Weekdays during afternoons for a quiet browsing experience",
-      "rules": [
-        "Handle old and rare books with care",
-        "Maintain silence inside the store",
-        "Photography is permitted but ask for permission first out of respect"
-      ]
-    },
-    "nearbyAttractions": [
-      {
-        "name": "Lodhi Gardens",
-        "distance": "1.2 km",
-        "description": "A lush, historic park filled with Sayyid and Lodhi-era monuments, ideal for reading."
-      },
-      {
-        "name": "India Gate",
-        "distance": "2.0 km",
-        "description": "The iconic war memorial arch of India, surrounded by expansive lawns."
-      },
-      {
-        "name": "Sunder Nursery",
-        "distance": "2.5 km",
-        "description": "A beautifully restored 16th-century heritage park and botanical garden."
-      }
-    ],
-    "imageUrl": "https://img-cdn.thepublive.com/filters:format(webp)/local-samosal/media/post_attachments/81YekZuybLw0hrdUWyVX.jpeg",
-    "imageAlt": "Must-visit shops in Khan Market to have the complete market experience! photograph",
-    "sourceNote": "Cultural Landmark Directory, Local History & Verified Public Records",
-    "tags": [
-      "Heritage Shop",
-      "Literary Landmark",
-      "Khan Market",
-      "Delhi History",
-      "Iconic Bookstore"
-    ]
-  },
-  {
     "id": "connaught-place-delhi",
     "name": "Connaught Place (CP) Delhi",
     "hindiName": "कनॉट प्लेस (सीपी) दिल्ली",
@@ -993,9 +925,78 @@
     ]
   },
   {
+    "architecturalStyle": "Mid-Century Commercial Shopfront / Vintage Delhi Vernacular",
+    "builtBy": "Fakir Chand Marwah",
+    "builtYear": "1951 CE (Originally founded 1931 in Peshawar)",
+    "culturalSignificance": "The bookstore is a living cultural monument representing Delhi's post-partition rehabilitation history and intellectual heritage. It functions as a beloved sanctuary for the literary community, regularly visited by renowned authors like Arundhati Roy, William Dalrymple, and Vikram Seth, serving as an enduring symbol of physical print culture against modernization.",
+    "folkloreOrLegends": [
+      "Patrons often claim that if you are looking for an obscure or out-of-print book on Indian history or philosophy, the owners can miraculously pull it out from a seemingly precariously balanced stack within minutes.",
+      "It is affectionately said that the scent of paper and ink inside the store has remained unchanged since 1951, shielding anyone who enters from the rush of the bustling city outside."
+    ],
+    "fullHistory": "The roots of Fakir Chand & Sons trace back to pre-partition India in the city of Peshawar (now in Pakistan), where Fakir Chand Marwah began a book trade in 1931. Following the turmoil and displacement of the 1947 Partition, the Marwah family relocated as refugees to Delhi. With resilience and a deep-seated passion for the printed word, Fakir Chand reopened his book vending business in Cantonment before securing Shop No. 15-A in the newly laid out Khan Market in 1951.\n\nKhan Market was initially built in 1951 as a rehabilitation market for refugees fleeing the North-West Frontier Province and West Punjab, named in honour of Khan Abdul Jabbar Khan (brother of Khan Abdul Ghaffar Khan). Fakir Chand and Sons was among the foundational shops in this newly carved neighborhood, supplying school texts, government publications, fiction, and international literary journals to diplomats, civil servants, and residents in nearby Lutyens' Delhi.\n\nOver the decades, as Khan Market transformed into one of the world's most expensive retail high streets dominated by luxury boutiques, Fakir Chand & Sons stubbornly preserved its original character. Today, run by fourth-generation custodians including Abhinav Bamhi, the store retains its signature labyrinthine stacks, hand-picked curation, and welcoming atmosphere, surviving digital disruptions and hyper-commercialization.\n\nIt continues to be a pilgrimage site for bibliophiles, scholars, authors, and politicians. The shop embodies the cultural continuum of post-independence Delhi, reflecting the city's migration history, intellectual appetite, and enduring love for paperbacks.",
+    "hindiCulturalSignificance": "यह किताबों की दुकान दिल्ली के विभाजन के बाद के पुनर्वास इतिहास और बौद्धिक विरासत का एक जीवित सांस्कृतिक प्रतीक है। यह साहित्यिक समुदाय के लिए एक प्रिय स्थल है, जहाँ अरुंधति रॉय, विलियम डेलरिम्पल और विक्रम सेठ जैसे प्रसिद्ध लेखक आते रहे हैं, जो आधुनिकीकरण के खिलाफ मुद्रित पुस्तक संस्कृति का जीवंत प्रतीक है।",
+    "hindiFolkloreOrLegends": [
+      "ग्राहकों का मानना है कि यदि आप भारतीय इतिहास या साहित्य की कोई दुर्लभ किताब ढूंढ रहे हैं, तो दुकान के मालिक किताबों के किसी रहस्यमयी ढेर से उसे मिनटों में निकाल कर दे देंगे।",
+      "कहा जाता है कि दुकान के अंदर किताबों और स्याही की खुशबू 1951 से आज तक वैसी ही बनी हुई है, जो भीतर आने वाले हर व्यक्ति को बाहर की हलचल से दूर एक शांत दुनिया में ले जाती है।"
+    ],
+    "hindiFullHistory": "फकीर चंद एंड संस की जड़ें विभाजन से पहले के पेशावर (अब पाकिस्तान) से जुड़ी हैं, जहाँ फकीर चंद मारवाह ने 1931 में किताबों का कारोबार शुरू किया था। 1947 के विभाजन के दर्द और विस्थापन के बाद, मारवाह परिवार शरणार्थी के रूप में दिल्ली आ गया। किताबों के प्रति अटूट प्रेम और साहस के साथ, फकीर चंद ने पहले दिल्ली छावनी में काम शुरू किया और फिर 1951 में नव-निर्मित खान मार्केट में दुकान नंबर 15-ए हासिल की।\n\nखान मार्केट का निर्माण 1951 में उत्तर-पश्चिम सीमांत प्रांत और पश्चिमी पंजाब से आए शरणार्थियों के पुनर्वास के लिए किया गया था, जिसका नाम खान अब्दुल गफ्फार खान के भाई खान अब्दुल जब्बार खान के सम्मान में रखा गया था। फकीर चंद एंड संस इस बाजार की पहली दुकानों में से एक थी, जिसने लुटियंस दिल्ली के निवासियों, राजनयिकों और सरकारी अधिकारियों को किताबें और पत्रिकाएं उपलब्ध कराईं।\n\nजैसे-जैसे दशक बीते और खान मार्केट दुनिया के सबसे महंगे खुदरा बाजारों में से एक बन गया, फकीर चंद एंड संस ने अपनी मूल पहचान को कभी नहीं खोया। आज चौथी पीढ़ी के संरक्षक अभिनव बम्ही और परिवार द्वारा संचालित यह दुकान अपनी पुरानी लकड़ी की अलमारियों और किताबों के ढेर के साथ डिजिटल क्रांति के युग में भी मजबूती से खड़ी है।",
+    "hindiInterestingFacts": [
+      "यह दुकान मूल रूप से 1931 में पेशावर में स्थापित की गई थी और 1947 के विभाजन के बाद दिल्ली स्थानांतरित हुई।",
+      "आधुनिक बुकस्टोर्स के विपरीत, यहाँ की किताबें कंप्यूटर कोड के बजाय परिवार के सदस्यों की स्मृति और फर्श से छत तक लगे ऊंचे ढेरों में व्यवस्थित होती हैं।",
+      "खान मार्केट का नाम स्वतंत्रता सेनानी खान अब्दुल जब्बार खान के नाम पर रखा गया था और फकीर चंद शरणार्थियों को आवंटित सबसे शुरुआती दुकानों में से एक थी।",
+      "दुकान ने डिजाइनर बुटीक के बीच अपनी पहचान बनाए रखने के लिए भारी भरकम कॉर्पोरेट ऑफर्स को ठुकरा दिया।"
+    ],
+    "hindiName": "फकीर चंद एंड संस बुक स्टोर",
+    "hindiShortDescription": "फकीर चंद एंड संस नई दिल्ली के ऐतिहासिक खान मार्केट में स्थित एक प्रतिष्ठित स्वतंत्र किताबों की दुकान है। भारत के विभाजन के बाद 1951 में स्थापित, यह राजधानी के सबसे पुराने और सबसे प्रिय साहित्यिक केंद्रों में से एक है, जो फर्श से छत तक किताबों के ढेरों और पुराने जमाने के आकर्षण के लिए प्रसिद्ध है।",
     "id": "fakir-chand-book-store",
-    "name": "Fakir Chand & Sons Book Store",
-    "category": "Book Store",
-    "imageUrl": "https://images.unsplash.com/photo-1526243741027-444d633d7365"
+    "imageAlt": "Fakir Chand & Sons Bookstore Entrance Khan Market",
+    "imageUrl": "https://www.himalayanwritingretreat.com/wp-content/uploads/2021/10/FAQIR-CHAND-1-PIC-COURTESY-FAQIR-CHAND.jpeg",
+    "interestingFacts": [
+      "The shop was originally founded in Peshawar in 1931 before migrating to Delhi after the 1947 partition.",
+      "Unlike modern bookstores categorized rigidly by computer codes, books here are organized intuitively by memory and towering vertical stacks from floor to ceiling.",
+      "Khan Market itself was named after the freedom fighter Khan Abdul Jabbar Khan, and Fakir Chand was one of the earliest shops allotted to refugees.",
+      "The store has steadfastly resisted massive corporate buyout offers to retain its original identity amidst multi-million-dollar designer boutiques."
+    ],
+    "isRealHeritageSite": true,
+    "modelUsed": "gemini-3.8-flash",
+    "name": "Fakir Chand and Sons Book Store",
+    "nearbyAttractions": [
+      {
+        "description": "Historic park containing 15th-century Sayyid and Lodi dynastic tombs amidst manicured lawns.",
+        "distance": "1.2 km",
+        "name": "Lodhi Garden"
+      },
+      {
+        "description": "A premier cultural hub hosting visual arts exhibitions, theater, and fine dining.",
+        "distance": "1.5 km",
+        "name": "India Habitat Centre"
+      },
+      {
+        "description": "UNESCO World Heritage Site and the grand 16th-century precursor to the Taj Mahal.",
+        "distance": "2.5 km",
+        "name": "Humayun's Tomb"
+      }
+    ],
+    "shortDescription": "Fakir Chand and Sons is an iconic independent bookshop nestled in the historic Khan Market of New Delhi. Established in 1951 after the partition of India, it is one of the capital's oldest and most beloved literary havens, celebrated for floor-to-ceiling book stacks and an old-world charm.",
+    "sourceNote": "Delhi Oral History Archives, Partition Heritage Documentation, and Khan Market Traders Historical Records",
+    "tags": [
+      "Bookstore",
+      "Literary Heritage",
+      "Khan Market",
+      "Partition History",
+      "Delhi NCR",
+      "Cultural Landmark"
+    ],
+    "travelTips": {
+      "bestTimeToVisit": "October to March (Weekday afternoons are ideal for quiet browsing)",
+      "entryFee": "Free (Purchases as per book retail prices)",
+      "nearestMetro": "Khan Market Metro Station (Violet Line, Exit Gate 4)",
+      "rules": [
+        "Handle the tightly stacked book piles gently to avoid toppling",
+        "Photography is generally allowed, but be respectful of other shoppers and staff",
+        "Do not bring open food and sugary beverages into the narrow aisles"
+      ],
+      "timings": "11:00 AM to 8:30 PM (Open all days, Sundays open around 11:30 AM)"
+    }
   }
 ]

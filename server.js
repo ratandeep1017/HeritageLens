@@ -194,6 +194,58 @@ app.put('/api/sites/:id', async (req, res) => {
   }
 });
 
+function normalizeServerText(str) {
+  return (str || '')
+    .toLowerCase()
+    .replace(/&amp;/g, '&')
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function findMatchingSiteInServer(query, sites) {
+  if (!query || !Array.isArray(sites)) return null;
+
+  const qNorm = normalizeServerText(query);
+  const stopwords = new Set(['the', 'delhi', 'ncr', 'new', 'india', 'and', 'sons', 'in', 'of', 'at', 'near', 'complex', 'place', 'monument', 'famous']);
+
+  const getTokens = (str) =>
+    str
+      .split(' ')
+      .map((w) => w.trim())
+      .filter((w) => w.length > 2 && !stopwords.has(w));
+
+  const qTokens = getTokens(qNorm);
+
+  for (const site of sites) {
+    if (!site) continue;
+    const nameNorm = normalizeServerText(site.name);
+    const idNorm = normalizeServerText((site.id || '').replace(/-/g, ' '));
+    const hindiNorm = (site.hindiName || '').trim();
+
+    if (qNorm === nameNorm || qNorm === idNorm) return site;
+    if (hindiNorm && query.includes(hindiNorm)) return site;
+
+    if (qNorm.length >= 4) {
+      if (nameNorm.includes(qNorm) || idNorm.includes(qNorm)) return site;
+      if (qNorm.includes(nameNorm) && nameNorm.length >= 4) return site;
+      if (qNorm.includes(idNorm) && idNorm.length >= 4) return site;
+    }
+
+    const siteTokens = getTokens(`${nameNorm} ${idNorm}`);
+    if (qTokens.length > 0 && siteTokens.length > 0) {
+      const matchCount = qTokens.filter((qw) =>
+        siteTokens.some((sw) => sw === qw || sw.includes(qw) || qw.includes(sw))
+      ).length;
+
+      if (qTokens.length >= 2 && matchCount >= 2) return site;
+      if (qTokens.length === 1 && matchCount === 1 && qTokens[0].length >= 4) return site;
+    }
+  }
+
+  return null;
+}
+
 // 5. POST add new heritage site
 app.post('/api/sites', async (req, res) => {
   try {
@@ -202,24 +254,36 @@ app.post('/api/sites', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Monument ID and Name are required.' });
     }
 
+    let allSites = isDbConnected() ? await getAllSitesFromDb() : readSitesFromFile();
+    if (!allSites || allSites.length === 0) allSites = readSitesFromFile();
+
+    // Check if place already exists in database
+    const matchedExisting = findMatchingSiteInServer(newSite.name, allSites) ||
+      allSites.find((s) => s.id.toLowerCase() === newSite.id.toLowerCase());
+
+    const finalSite = matchedExisting
+      ? { ...newSite, ...matchedExisting, id: matchedExisting.id, imageUrl: matchedExisting.imageUrl || newSite.imageUrl }
+      : newSite;
+
     if (isDbConnected()) {
-      await upsertSiteInDb(newSite);
-      console.log(`[TiDB Cloud] Saved site '${newSite.id}' (${newSite.name})`);
+      await upsertSiteInDb(finalSite);
+      console.log(`[TiDB Cloud] ${matchedExisting ? 'Merged existing' : 'Saved new'} site '${finalSite.id}' (${finalSite.name})`);
     }
 
-    const sites = readSitesFromFile();
-    const existingIndex = sites.findIndex((s) => s.id === newSite.id || s.id.toLowerCase() === newSite.id.toLowerCase());
+    const fileSites = readSitesFromFile();
+    const existingIndex = fileSites.findIndex((s) => s.id.toLowerCase() === finalSite.id.toLowerCase());
     if (existingIndex !== -1) {
-      sites[existingIndex] = { ...sites[existingIndex], ...newSite };
+      fileSites[existingIndex] = { ...fileSites[existingIndex], ...finalSite };
     } else {
-      sites.push(newSite);
+      fileSites.push(finalSite);
     }
-    writeSitesToFile(sites);
+    writeSitesToFile(fileSites);
 
-    res.status(201).json({
+    res.status(matchedExisting ? 200 : 201).json({
       success: true,
-      message: `Site '${newSite.name}' added successfully.`,
-      data: newSite,
+      message: `Site '${finalSite.name}' ${matchedExisting ? 'already exists and updated' : 'added successfully'}.`,
+      data: finalSite,
+      isAlreadyListed: Boolean(matchedExisting),
     });
   } catch (error) {
     console.error('POST /api/sites error:', error);
@@ -329,66 +393,110 @@ app.get('/api/image-search', async (req, res) => {
 
     const results = [];
 
-    // 1. Live Web Image Search (DuckDuckGo Image Engine)
+    // 1. High-Precision Live Web Image Search (Bing Engine - works reliably on both local and cloud datacenter IPs)
     try {
-      const tokenRes = await fetch(`https://duckduckgo.com/?q=${encodeURIComponent(query)}&iax=images&ia=images`);
-      const tokenHtml = await tokenRes.text();
-      const vqdMatch = tokenHtml.match(/vqd=([\d-]+)/);
-      const vqd = vqdMatch ? vqdMatch[1] : null;
+      const bingUrl = `https://www.bing.com/images/search?q=${encodeURIComponent(query)}&form=HDRSC2`;
+      const bingRes = await fetch(bingUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+        },
+      });
 
-      if (vqd) {
-        const imgRes = await fetch(`https://duckduckgo.com/i.js?l=us-en&o=json&q=${encodeURIComponent(query)}&vqd=${vqd}&f=,,,`, {
+      if (bingRes.ok) {
+        const text = await bingRes.text();
+        const matches = [...text.matchAll(/class="iusc"[^>]*?m="([^"]+)"/g)];
+        for (let i = 0; i < Math.min(matches.length, 14); i++) {
+          try {
+            const decoded = matches[i][1].replace(/&quot;/g, '"');
+            const item = JSON.parse(decoded);
+            if (item.murl && item.murl.startsWith('http') && !results.some((r) => r.url === item.murl)) {
+              results.push({
+                id: `web-${i}-${Date.now()}`,
+                title: (item.t || query).replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/&quot;/g, '"'),
+                url: item.murl,
+                thumbUrl: (item.turl || item.murl).replace(/&amp;/g, '&'),
+                source: 'Live Web Search',
+              });
+            }
+          } catch (_) {}
+        }
+      }
+    } catch (err) {
+      console.warn('[Image Search] Bing engine search error:', err.message);
+    }
+
+    // 2. Secondary: DuckDuckGo Image Search if needed
+    if (results.length < 8) {
+      try {
+        const tokenRes = await fetch(`https://duckduckgo.com/?q=${encodeURIComponent(query)}&iax=images&ia=images`, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Referer': 'https://duckduckgo.com/',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9',
           },
         });
-        if (imgRes.ok) {
-          const data = await imgRes.json();
-          if (Array.isArray(data.results)) {
-            for (let i = 0; i < Math.min(data.results.length, 12); i++) {
-              const r = data.results[i];
-              if (r.image && r.image.startsWith('http')) {
-                results.push({
-                  id: `web-${i}-${Date.now()}`,
-                  title: r.title || query,
-                  url: r.image,
-                  thumbUrl: r.thumbnail || r.image,
-                  source: 'Web Search',
-                });
+        const tokenHtml = await tokenRes.text();
+        const vqdMatch = tokenHtml.match(/vqd=([\d-]+)/) || tokenHtml.match(/vqd=["']([^"']+)["']/);
+        const vqd = vqdMatch ? vqdMatch[1] : null;
+
+        if (vqd) {
+          const imgRes = await fetch(`https://duckduckgo.com/i.js?l=us-en&o=json&q=${encodeURIComponent(query)}&vqd=${vqd}&f=,,,`, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              'Referer': 'https://duckduckgo.com/',
+            },
+          });
+          if (imgRes.ok) {
+            const data = await imgRes.json();
+            if (Array.isArray(data.results)) {
+              for (let i = 0; i < Math.min(data.results.length, 12); i++) {
+                const r = data.results[i];
+                if (r.image && r.image.startsWith('http') && !results.some((x) => x.url === r.image)) {
+                  results.push({
+                    id: `ddg-${i}-${Date.now()}`,
+                    title: r.title || query,
+                    url: r.image,
+                    thumbUrl: r.thumbnail || r.image,
+                    source: 'Live Web Search',
+                  });
+                }
               }
             }
           }
         }
+      } catch (err) {
+        console.warn('[Image Search] DuckDuckGo search error:', err.message);
       }
-    } catch (err) {
-      console.warn('[Image Search] Web search error:', err.message);
     }
 
-    // 2. Wikipedia Search API as supplementary source
-    try {
-      const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=6&prop=pageimages&piprop=original|thumbnail&pithumbsize=800`;
-      const wikiRes = await fetch(wikiUrl, {
-        headers: { 'User-Agent': 'HeritageLens/1.0 (https://heritagelens.ai; contact@heritagelens.ai)' },
-      });
-      if (wikiRes.ok) {
-        const data = await wikiRes.json();
-        const pages = data.query?.pages || {};
-        for (const p of Object.values(pages)) {
-          const img = p.original?.source || p.thumbnail?.source;
-          if (img && typeof img === 'string' && img.startsWith('http') && !results.some((r) => r.url === img)) {
-            results.push({
-              id: `wiki-${p.pageid || p.title}`,
-              title: p.title || query,
-              url: img.replace(/\/\d+px-/, '/1600px-'),
-              thumbUrl: p.thumbnail?.source || img,
-              source: 'Wikipedia',
-            });
+    // 3. Supplementary: Wikipedia Search API
+    if (results.length < 8) {
+      try {
+        const wikiUrl = `https://en.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search&gsrsearch=${encodeURIComponent(query)}&gsrlimit=6&prop=pageimages&piprop=original|thumbnail&pithumbsize=800`;
+        const wikiRes = await fetch(wikiUrl, {
+          headers: { 'User-Agent': 'HeritageLens/1.0 (https://heritagelens.ai; contact@heritagelens.ai)' },
+        });
+        if (wikiRes.ok) {
+          const data = await wikiRes.json();
+          const pages = data.query?.pages || {};
+          for (const p of Object.values(pages)) {
+            const img = p.original?.source || p.thumbnail?.source;
+            if (img && typeof img === 'string' && img.startsWith('http') && !results.some((r) => r.url === img)) {
+              results.push({
+                id: `wiki-${p.pageid || p.title}`,
+                title: p.title || query,
+                url: img.replace(/\/\d+px-/, '/1600px-'),
+                thumbUrl: p.thumbnail?.source || img,
+                source: 'Wikipedia',
+              });
+            }
           }
         }
+      } catch (err) {
+        console.warn('[Image Search] Wikipedia search error:', err.message);
       }
-    } catch (err) {
-      console.warn('[Image Search] Wikipedia search error:', err.message);
     }
 
     res.json({
@@ -433,6 +541,20 @@ app.post('/api/generate-site', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Query parameter is required.' });
     }
 
+    // 1. Check if place is ALREADY listed in the catalog / database to prevent duplicate AI calls
+    let allSites = isDbConnected() ? await getAllSitesFromDb() : readSitesFromFile();
+    if (!allSites || allSites.length === 0) allSites = readSitesFromFile();
+
+    const existing = findMatchingSiteInServer(query, allSites);
+    if (existing) {
+      console.log(`[Generate Site] Place '${query}' already listed as '${existing.name}' (${existing.id}). Returning existing record.`);
+      return res.json({
+        success: true,
+        site: existing,
+        isAlreadyListed: true,
+      });
+    }
+
     if (!isGeminiAvailable()) {
       return res.status(503).json({
         success: false,
@@ -441,7 +563,7 @@ app.post('/api/generate-site', async (req, res) => {
     }
 
     const siteDossier = await generateSiteDossier(query, lang || 'en');
-    res.json({ success: true, site: siteDossier });
+    res.json({ success: true, site: siteDossier, isAlreadyListed: false });
   } catch (error) {
     console.error('POST /api/generate-site error:', error.message);
     res.status(500).json({ success: false, error: error.message || 'Failed to generate site dossier.' });

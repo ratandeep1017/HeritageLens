@@ -25,7 +25,9 @@ import {
   Image as ImageIcon,
   AlertCircle,
   Eye,
-  CheckCircle
+  CheckCircle,
+  Plus,
+  Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HeritageDataStore, useHeritageSites } from '../services/heritageDataStore';
@@ -43,6 +45,7 @@ import { ImageInput } from '../components/ImageInput';
 import { ApiKeyPromptModal } from '../components/ApiKeyPromptModal';
 import { VisualImagePickerModal } from '../components/VisualImagePickerModal';
 import { handleMonumentImageError } from '../utils/imageFallback';
+import { findExistingHeritageSite } from '../utils/monumentMatcher';
 
 interface HomePageProps {
   currentLang: 'en' | 'hi';
@@ -74,6 +77,41 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
   });
   const [isVisualPickerOpen, setIsVisualPickerOpen] = useState(false);
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
+  const [isAddingToCatalog, setIsAddingToCatalog] = useState(false);
+
+  // Determine if the current search result is already saved in the active catalog
+  const isCurrentResultInCatalog = Boolean(
+    aiSearchResult?.site &&
+      (aiSearchResult.isAlreadyListed ||
+        heritageSites.some((s) => s.id.toLowerCase() === aiSearchResult.site!.id.toLowerCase()))
+  );
+
+  const handleAddSiteToCatalog = async () => {
+    if (!aiSearchResult?.site) return;
+    setIsAddingToCatalog(true);
+    try {
+      const res = await HeritageDataStore.addNewSite(aiSearchResult.site);
+      const updated: GenerateSiteResponse = {
+        ...aiSearchResult,
+        site: res.site || aiSearchResult.site,
+        isAlreadyListed: true,
+      };
+      setAiSearchResult(updated);
+      try {
+        sessionStorage.setItem('heritagelens_last_ai_search_result', JSON.stringify(updated));
+      } catch {}
+
+      triggerToast(
+        currentLang === 'en'
+          ? `✨ Successfully added "${aiSearchResult.site.name}" to catalog!`
+          : `✨ "${aiSearchResult.site.hindiName || aiSearchResult.site.name}" सफलतापूर्वक कैटलॉग में जोड़ा गया!`
+      );
+    } catch (err: any) {
+      triggerToast(currentLang === 'en' ? 'Failed to add place to catalog' : 'कैटलॉग में जोड़ने में त्रुटि हुई');
+    } finally {
+      setIsAddingToCatalog(false);
+    }
+  };
 
   // Keep aiSearchResult in sync with heritageSites when user updates photo or catalog
   useEffect(() => {
@@ -106,6 +144,28 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
     const targetQuery = (queryToSearch || aiSearchQuery).trim();
     if (!targetQuery) return;
 
+    // 1. Prevent duplicate AI calls & duplicate catalog entries if place is already listed!
+    const existing = findExistingHeritageSite(targetQuery, heritageSites);
+    if (existing) {
+      const existingResult: GenerateSiteResponse = {
+        success: true,
+        isRealHeritageSite: true,
+        site: existing,
+        isAlreadyListed: true,
+      };
+      setAiSearchResult(existingResult);
+      try {
+        sessionStorage.setItem('heritagelens_last_ai_search_result', JSON.stringify(existingResult));
+      } catch {}
+
+      triggerToast(
+        currentLang === 'en'
+          ? `📌 "${existing.name}" is already in your catalog! Loaded existing dossier.`
+          : `📌 "${existing.hindiName || existing.name}" पहले से कैटलॉग में मौजूद है!`
+      );
+      return;
+    }
+
     const key = StorageService.getApiKey() || '';
     setIsAiSearching(true);
     setAiSearchResult(null);
@@ -119,11 +179,19 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
       } catch {}
 
       if (res.success && res.isRealHeritageSite && res.site) {
-        triggerToast(
-          currentLang === 'en'
-            ? `✨ Successfully discovered and added "${res.site.name}" to catalog!`
-            : `✨ "${res.site.hindiName || res.site.name}" सफलतापूर्वक कैटलॉग में जोड़ा गया!`
-        );
+        if (res.isAlreadyListed) {
+          triggerToast(
+            currentLang === 'en'
+              ? `📌 "${res.site.name}" is already listed in the catalog.`
+              : `📌 "${res.site.hindiName || res.site.name}" पहले से कैटलॉग में मौजूद है।`
+          );
+        } else {
+          triggerToast(
+            currentLang === 'en'
+              ? `✨ Discovered "${res.site.name}"! Click "+ Add to Catalog" to save it.`
+              : `✨ "${res.site.hindiName || res.site.name}" खोजा गया! सहेजने के लिए "+ कैटलॉग में जोड़ें" दबाएं।`
+          );
+        }
       } else if (res.rejectionReason) {
         triggerToast(
           currentLang === 'en'
@@ -593,9 +661,17 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
                     </div>
                     <div className="flex flex-col">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300">
-                          ✓ {currentLang === 'en' ? 'Added to Catalog & Database' : 'कैटलॉग एवं डेटाबेस में सहेजा गया'}
-                        </span>
+                        {isCurrentResultInCatalog ? (
+                          <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                            <span>✓</span>
+                            <span>{currentLang === 'en' ? 'Saved in Catalog & Database' : 'कैटलॉग एवं डेटाबेस में सहेजा गया'}</span>
+                          </span>
+                        ) : (
+                          <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                            <span>✨</span>
+                            <span>{currentLang === 'en' ? 'Discovered Place (Ready to Add)' : 'खोजा गया (कैटलॉग में नहीं जुड़ा)'}</span>
+                          </span>
+                        )}
                         <span className="text-[10px] text-emerald-700 font-mono">
                           ID: {aiSearchResult.site.id}
                         </span>
@@ -610,6 +686,28 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto shrink-0 pt-2 sm:pt-0 border-t sm:border-0 border-emerald-200">
+                    {/* Explicit ADD Button */}
+                    {isCurrentResultInCatalog ? (
+                      <span className="flex-1 sm:flex-none px-3.5 py-2 bg-emerald-100/80 text-emerald-800 text-xs font-bold rounded-xl border border-emerald-300 flex items-center justify-center gap-1.5 shadow-2xs">
+                        <Check className="w-3.5 h-3.5 text-emerald-700 stroke-[3]" />
+                        <span>{currentLang === 'en' ? 'In Catalog' : 'कैटलॉग में मौजूद है'}</span>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleAddSiteToCatalog}
+                        disabled={isAddingToCatalog}
+                        className="flex-1 sm:flex-none px-4 py-2 bg-[#2C4A3E] hover:bg-[#233a31] text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer hover:scale-102 active:scale-98"
+                      >
+                        {isAddingToCatalog ? (
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-[#D4AF37]" />
+                        ) : (
+                          <Plus className="w-3.5 h-3.5 text-[#D4AF37] stroke-[3]" />
+                        )}
+                        <span>{currentLang === 'en' ? '+ Add to Catalog' : '+ कैटलॉग में जोड़ें'}</span>
+                      </button>
+                    )}
+
                     <button
                       type="button"
                       onClick={() => setIsVisualPickerOpen(true)}
@@ -622,7 +720,7 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
                     <button
                       type="button"
                       onClick={() => navigate(`/result?site=${aiSearchResult.site?.id}`)}
-                      className="flex-1 sm:flex-none px-4 py-2 bg-[#2C4A3E] hover:bg-[#233a31] text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                      className="flex-1 sm:flex-none px-4 py-2 bg-[#1A1A1A] hover:bg-[#2D2926] text-white text-xs font-bold rounded-xl shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Eye className="w-3.5 h-3.5 text-[#D4AF37]" />
                       <span>{currentLang === 'en' ? 'View Result Dossier' : 'परिणाम देखें'}</span>
@@ -641,7 +739,9 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
                           imageUrl: newUrl,
                           imageAlt: newAlt || aiSearchResult.site.imageAlt
                         };
-                        await HeritageDataStore.saveSite(updatedSite);
+                        if (isCurrentResultInCatalog) {
+                          await HeritageDataStore.saveSite(updatedSite);
+                        }
                         const newResult = {
                           ...aiSearchResult,
                           site: updatedSite
@@ -650,7 +750,7 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
                         try {
                           sessionStorage.setItem('heritagelens_last_ai_search_result', JSON.stringify(newResult));
                         } catch {}
-                        triggerToast(currentLang === 'en' ? 'Updated and saved photo successfully!' : 'फ़ोटो सफलतापूर्वक सहेजी गई!');
+                        triggerToast(currentLang === 'en' ? 'Updated photo successfully!' : 'फ़ोटो सफलतापूर्वक सहेजी गई!');
                       }}
                       currentImageUrl={aiSearchResult.site.imageUrl}
                       placeName={aiSearchResult.site.name}

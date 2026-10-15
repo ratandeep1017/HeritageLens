@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DELHI_HERITAGE_SITES } from '../data/heritageSites';
 import { HeritageSite } from '../types';
+import { isMonumentMatch } from '../utils/monumentMatcher';
 
 const STORAGE_KEY = 'heritagelens_custom_heritage_sites_v2';
 const EVENT_NAME = 'heritagelens_heritage_data_updated';
@@ -171,9 +172,30 @@ export const HeritageDataStore = {
   /**
    * Adds a new heritage site globally.
    */
-  async addNewSite(newSite: HeritageSite): Promise<{ success: boolean; site: HeritageSite }> {
+  async addNewSite(newSite: HeritageSite): Promise<{ success: boolean; site: HeritageSite; isAlreadyListed?: boolean }> {
     const sites = this.getAllSites();
-    // Ensure clean ID
+
+    // Check if place already exists by ID OR by fuzzy monument name/alias
+    const existingIndex = sites.findIndex(
+      (s) => (newSite.id && s.id.toLowerCase() === newSite.id.toLowerCase()) || isMonumentMatch(newSite.name, s)
+    );
+
+    if (existingIndex >= 0) {
+      const existing = sites[existingIndex];
+      // Monument is already listed in catalog! Merge to preserve canonical ID and avoid duplicates
+      const merged: HeritageSite = {
+        ...newSite,
+        ...existing,
+        imageUrl: existing.imageUrl || newSite.imageUrl,
+        id: existing.id,
+      };
+      sites[existingIndex] = merged;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sites));
+      this.notifySubscribers();
+      return { success: true, site: merged, isAlreadyListed: true };
+    }
+
+    // Ensure clean ID for truly new monuments
     let finalId = newSite.id?.trim() || `site-${Date.now()}`;
     finalId = finalId.toLowerCase().replace(/[^a-z0-9-_]/g, '-');
 
@@ -182,13 +204,7 @@ export const HeritageDataStore = {
       id: finalId,
     };
 
-    const existingIndex = sites.findIndex((s) => s.id === finalId || s.id.toLowerCase() === finalId.toLowerCase());
-    if (existingIndex >= 0) {
-      sites[existingIndex] = { ...sites[existingIndex], ...completeSite };
-    } else {
-      sites.push(completeSite);
-    }
-
+    sites.push(completeSite);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(sites));
     this.notifySubscribers();
 
@@ -213,7 +229,7 @@ export const HeritageDataStore = {
       console.warn('[HeritageDataStore] Backend POST offline/failed:', err);
     }
 
-    return { success: true, site: completeSite };
+    return { success: true, site: completeSite, isAlreadyListed: false };
   },
 
   /**

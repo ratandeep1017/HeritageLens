@@ -48,23 +48,23 @@ const CURATED_THEMES: Record<string, { label: string; hindiLabel: string; icon: 
     images: [
       {
         id: 'curated-book-1',
-        url: 'https://images.unsplash.com/photo-1526243741027-444d633d7365?auto=format&fit=crop&w=1600&q=85',
-        thumbUrl: 'https://images.unsplash.com/photo-1526243741027-444d633d7365?auto=format&fit=crop&w=500&q=75',
-        title: 'Floor-to-Ceiling Heritage Bookstore Stacks',
+        url: 'https://www.himalayanwritingretreat.com/wp-content/uploads/2021/10/FAQIR-CHAND-1-PIC-COURTESY-FAQIR-CHAND.jpeg',
+        thumbUrl: 'https://ts4.mm.bing.net/th?id=OIP.6eEdt7Ds3BHULx3FMXUtqQHaIw&pid=15.1',
+        title: 'Fakir Chand & Sons Historic Book Store (Khan Market, Delhi)',
         source: 'Curated'
       },
       {
         id: 'curated-book-2',
-        url: 'https://images.unsplash.com/photo-1507842229451-7f01be7ff6ab?auto=format&fit=crop&w=1600&q=85',
-        thumbUrl: 'https://images.unsplash.com/photo-1507842229451-7f01be7ff6ab?auto=format&fit=crop&w=500&q=75',
-        title: 'Classic Wooden Library Shelves & Reading Nook',
+        url: 'https://imgmediagumlet.lbb.in/media/2024/12/675134a3fef45a07cdda55cb_1733375139964.jpg',
+        thumbUrl: 'https://ts4.mm.bing.net/th?id=OIP.LRTswqt9kkAMkXZNVM30gwAAAA&pid=15.1',
+        title: 'Faqir Chand & Sons Bookstore Entrance & Stacks',
         source: 'Curated'
       },
       {
         id: 'curated-book-3',
-        url: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=1600&q=85',
-        thumbUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?auto=format&fit=crop&w=500&q=75',
-        title: 'Vintage Literary Books Collection',
+        url: 'https://images.unsplash.com/photo-1526243741027-444d633d7365?auto=format&fit=crop&w=1600&q=85',
+        thumbUrl: 'https://images.unsplash.com/photo-1526243741027-444d633d7365?auto=format&fit=crop&w=500&q=75',
+        title: 'Floor-to-Ceiling Heritage Bookstore Stacks',
         source: 'Curated'
       },
       {
@@ -262,22 +262,7 @@ export const VisualImagePickerModal: React.FC<VisualImagePickerModalProps> = ({
       }
     }
 
-    // 3. Fallback Curated Items if search returned few results (Accurate Category Mapping)
-    if (results.length === 0) {
-      const qLower = cleanQuery.toLowerCase();
-      if (qLower.includes('book') || qLower.includes('library') || qLower.includes('reading') || qLower.includes('store')) {
-        results.push(...CURATED_THEMES.bookstore.images);
-      } else if (qLower.includes('temple') || qLower.includes('mandir') || qLower.includes('iskcon') || qLower.includes('ashram')) {
-        results.push(...CURATED_THEMES.temple.images);
-      } else if (qLower.includes('garden') || qLower.includes('park') || qLower.includes('nursery') || qLower.includes('lake')) {
-        results.push(...CURATED_THEMES.gardens.images);
-      } else if (qLower.includes('market') || qLower.includes('bazaar') || qLower.includes('haat') || qLower.includes('gali')) {
-        results.push(...CURATED_THEMES.markets.images);
-      } else {
-        results.push(...CURATED_THEMES.monuments.images);
-      }
-    }
-
+    // Keep Live Web Search purely containing actual web & Wikipedia results
     setSearchResults(results);
     setIsLoading(false);
   }, []);
@@ -534,7 +519,7 @@ export const VisualImagePickerModal: React.FC<VisualImagePickerModalProps> = ({
                 <div className="flex flex-col items-center justify-center p-12 text-center bg-white rounded-2xl border border-dashed border-[#E8E2D9]">
                   <ImageIcon className="w-12 h-12 text-neutral-300 mb-3" />
                   <h4 className="text-sm font-bold text-[#1A1A1A]">
-                    {currentLang === 'en' ? 'No direct photos found on Wikipedia' : 'कोई फ़ोटो नहीं मिली'}
+                    {currentLang === 'en' ? 'No web photos found for this search' : 'इस खोज के लिए कोई वेब फ़ोटो नहीं मिली'}
                   </h4>
                   <p className="text-xs text-[#8C8276] max-w-md mt-1 mb-4">
                     {currentLang === 'en'
