@@ -378,7 +378,7 @@ export async function fetchAuthenticPlaceImage(
     return 'https://images.unsplash.com/photo-1590050752117-238cb0fb12b1?auto=format&fit=crop&w=1200&q=80'; // Indian temple
   }
   if (combinedContext.includes('garden') || combinedContext.includes('park') || combinedContext.includes('nursery') || combinedContext.includes('lake') || combinedContext.includes('nature')) {
-    return 'https://images.unsplash.com/photo-1588096344356-9a29656515f4?auto=format&fit=crop&w=1200&q=80'; // Lush heritage garden
+    return 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=1200&q=80'; // Lush heritage garden
   }
   if (combinedContext.includes('market') || combinedContext.includes('bazaar') || combinedContext.includes('haat') || combinedContext.includes('gali') || combinedContext.includes('food')) {
     return 'https://images.unsplash.com/photo-1596178065887-1198b6148b2b?auto=format&fit=crop&w=1200&q=80'; // Heritage bazaar

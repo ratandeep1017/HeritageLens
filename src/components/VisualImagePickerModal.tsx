@@ -97,9 +97,9 @@ const CURATED_THEMES: Record<string, { label: string; hindiLabel: string; icon: 
       },
       {
         id: 'curated-temple-3',
-        url: 'https://images.unsplash.com/photo-1609766418204-94aae0ecfddc?auto=format&fit=crop&w=1600&q=85',
-        thumbUrl: 'https://images.unsplash.com/photo-1609766418204-94aae0ecfddc?auto=format&fit=crop&w=500&q=75',
-        title: 'Vedic Temple Courtyard & Holy Sanctum',
+        url: 'https://images.unsplash.com/photo-1692173248120-59547c3d4653?auto=format&fit=crop&w=1600&q=85',
+        thumbUrl: 'https://images.unsplash.com/photo-1692173248120-59547c3d4653?auto=format&fit=crop&w=500&q=75',
+        title: 'Meenakshi Amman Temple Gopuram & Carvings',
         source: 'Curated'
       },
       {
@@ -118,8 +118,8 @@ const CURATED_THEMES: Record<string, { label: string; hindiLabel: string; icon: 
     images: [
       {
         id: 'curated-garden-1',
-        url: 'https://images.unsplash.com/photo-1588096344356-9a29656515f4?auto=format&fit=crop&w=1600&q=85',
-        thumbUrl: 'https://images.unsplash.com/photo-1588096344356-9a29656515f4?auto=format&fit=crop&w=500&q=75',
+        url: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=1600&q=85',
+        thumbUrl: 'https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?auto=format&fit=crop&w=500&q=75',
         title: 'Lush Mughal Heritage Garden & Pathways',
         source: 'Curated'
       },
@@ -153,9 +153,9 @@ const CURATED_THEMES: Record<string, { label: string; hindiLabel: string; icon: 
       },
       {
         id: 'curated-market-2',
-        url: 'https://images.unsplash.com/photo-1626017044256-0b6b6a8e8a5d?auto=format&fit=crop&w=1600&q=85',
-        thumbUrl: 'https://images.unsplash.com/photo-1626017044256-0b6b6a8e8a5d?auto=format&fit=crop&w=500&q=75',
-        title: 'Connaught Place Colonnaded Heritage Walkway',
+        url: 'https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&w=1600&q=85',
+        thumbUrl: 'https://images.unsplash.com/photo-1533900298318-6b8da08a523e?auto=format&fit=crop&w=500&q=75',
+        title: 'Heritage Market Walkway & Bazaar',
         source: 'Curated'
       }
     ]

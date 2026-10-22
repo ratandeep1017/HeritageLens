@@ -92,7 +92,7 @@ export const UPCOMING_REGIONS: UpcomingRegion[] = [
     hindiCity: 'मदुरै एवं तंजावुर',
     keyMonuments: ['Meenakshi Temple', 'Brihadeeswarar Temple', 'Shore Temple', 'Mahabalipuram'],
     hindiKeyMonuments: ['मीनाक्षी मंदिर', 'बृहदेश्वर मंदिर', 'शोर मंदिर', 'महाबलीपुरम'],
-    bannerUrl: 'https://images.unsplash.com/photo-1609137144829-9e8c46fb6d6d?auto=format&fit=crop&w=1200&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1692173248120-59547c3d4653?auto=format&fit=crop&w=1200&q=80',
     tag: 'Dravidian',
     monumentCountEstimate: '14+ Monuments'
   },
@@ -117,11 +117,11 @@ export const STATE_BANNER_FALLBACKS: Record<string, string> = {
   'uttar pradesh': 'https://images.unsplash.com/photo-1564507592333-c60657eea523?auto=format&fit=crop&w=1200&q=80',
   'karnataka': 'https://images.unsplash.com/photo-1548013146-72479768bada?auto=format&fit=crop&w=1200&q=80',
   'maharashtra': 'https://images.unsplash.com/photo-1570168007204-dfb528c6958f?auto=format&fit=crop&w=1200&q=80',
-  'tamil nadu': 'https://images.unsplash.com/photo-1609137144829-9e8c46fb6d6d?auto=format&fit=crop&w=1200&q=80',
+  'tamil nadu': 'https://images.unsplash.com/photo-1692173248120-59547c3d4653?auto=format&fit=crop&w=1200&q=80',
   'west bengal': 'https://images.unsplash.com/photo-1558431382-27e303142255?auto=format&fit=crop&w=1200&q=80',
-  'gujarat': 'https://images.unsplash.com/photo-1609137144829-9e8c46fb6d6d?auto=format&fit=crop&w=1200&q=80',
-  'madhya pradesh': 'https://images.unsplash.com/photo-1600100397608-f010f443b7e7?auto=format&fit=crop&w=1200&q=80',
-  'odisha': 'https://images.unsplash.com/photo-1600100397608-f010f443b7e7?auto=format&fit=crop&w=1200&q=80',
+  'gujarat': 'https://images.unsplash.com/photo-1590812855152-7d2bc336a5e8?auto=format&fit=crop&w=1200&q=80',
+  'madhya pradesh': 'https://images.unsplash.com/photo-1663762440402-e09c319de419?auto=format&fit=crop&w=1200&q=80',
+  'odisha': 'https://images.unsplash.com/photo-1725046908999-195118679132?auto=format&fit=crop&w=1200&q=80',
 };
 
 export function getStateBanner(stateName: string): string {
