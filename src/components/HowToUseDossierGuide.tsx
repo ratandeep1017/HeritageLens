@@ -557,32 +557,37 @@ export const HowToUseDossierGuide: React.FC<HowToUseDossierGuideProps> = ({ curr
             initial={{ opacity: 0, y: 10 }}
             animate={gridInView ? { opacity: 1, y: 0 } : {}}
             transition={{ delay: 0.4, duration: 0.5 }}
-            className="relative rounded-2xl overflow-hidden"
+            className="relative rounded-2xl overflow-hidden bg-gradient-to-r from-[#244337] via-[#1E3A2F] to-[#152B23] border border-[#3D6354]/40 shadow-xl"
+            style={{
+              backgroundColor: '#1E3A2F',
+            }}
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-[#2C4A3E] to-[#1A332A] -z-10" />
+            {/* Pattern overlay */}
             <div
-              className="absolute inset-0 opacity-[0.04] -z-10"
+              className="absolute inset-0 opacity-[0.06] pointer-events-none"
               style={{
                 backgroundImage:
                   'radial-gradient(circle at 1px 1px, #D4AF37 1px, transparent 0)',
                 backgroundSize: '20px 20px',
               }}
             />
+            {/* Subtle ambient glow on left */}
+            <div className="absolute -left-10 -top-10 w-40 h-40 bg-[#D4AF37]/15 rounded-full blur-2xl pointer-events-none" />
 
-            <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="relative z-10 p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <motion.div
-                  animate={{ scale: [1, 1.08, 1] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-                  className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D4AF37] to-[#C05E42] flex items-center justify-center shadow-lg shrink-0"
+                  animate={{ scale: [1, 1.06, 1] }}
+                  transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                  className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#D4AF37] to-[#C05E42] flex items-center justify-center shadow-lg shrink-0"
                 >
                   <Eye className="w-5 h-5 text-white" />
                 </motion.div>
                 <div>
-                  <span className="text-sm font-bold text-white block">
+                  <span className="text-sm sm:text-base font-bold text-white block tracking-wide">
                     {currentLang === 'en' ? 'Try a live dossier now' : 'अभी लाइव देखें'}
                   </span>
-                  <span className="text-[11px] text-white/60">
+                  <span className="text-xs text-[#E8E2D9]/80 block">
                     {currentLang === 'en'
                       ? 'Experience maps, booking dots, audio & more:'
                       : 'नक्शे, बुकिंग, ऑडियो अभी अनुभव करें:'}
@@ -590,7 +595,7 @@ export const HowToUseDossierGuide: React.FC<HowToUseDossierGuideProps> = ({ curr
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
                 {[
                   { id: 'golden-temple-amritsar', nameEn: 'Golden Temple', nameHi: 'स्वर्ण मंदिर' },
                   { id: 'red-fort', nameEn: 'Red Fort', nameHi: 'लाल किला' },
@@ -599,10 +604,10 @@ export const HowToUseDossierGuide: React.FC<HowToUseDossierGuideProps> = ({ curr
                   <Link
                     key={samp.id}
                     to={`/result?site=${samp.id}`}
-                    className="group/link px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white border border-white/20 hover:border-white text-white hover:text-[#2C4A3E] text-xs font-bold transition-all duration-300 shadow-sm hover:shadow-md flex items-center gap-1.5 backdrop-blur-sm"
+                    className="group/link px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white text-white hover:text-[#152B23] border border-white/20 hover:border-white text-xs font-semibold transition-all duration-200 shadow-sm hover:shadow-md flex items-center gap-1.5 backdrop-blur-sm"
                   >
                     <span>{currentLang === 'hi' ? samp.nameHi : samp.nameEn}</span>
-                    <ArrowRight className="w-3 h-3 opacity-60 group-hover/link:opacity-100 group-hover/link:translate-x-0.5 transition-all" />
+                    <ArrowRight className="w-3.5 h-3.5 text-white/70 group-hover/link:text-[#152B23] group-hover/link:translate-x-0.5 transition-all" />
                   </Link>
                 ))}
               </div>
