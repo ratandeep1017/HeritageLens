@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HeritageLens AI - SIH 2026 Interactive Solution Slide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Cinzel:wght@600;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    :root {
+      --primary: #1E3A8A;
+      --primary-light: #3B82F6;
+      --accent: #E07A5F;
+      --accent-gold: #D97706;
+      --saffron: #F97316;
+      --bg-slide: #FFFFFF;
+      --card-bg: #FFFFFF;
+      --text-main: #1F2937;
+      --text-muted: #6B7280;
+      --border-color: #E5E7EB;
+      --sih-blue: #0284C7;
+      --success: #10B981;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+    }
+
+    body {
+      background: #0F172A;
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 24px 16px;
+    }
+
+    /* Top Action Bar */
+    .toolbar {
+      width: 100%;
+      max-width: 1280px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 20px;
+      background: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(12px);
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 20px;
+      color: #F8FAFC;
+    }
+
+    .toolbar-title {
+      font-weight: 700;
+      font-size: 1.05rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .toolbar-title span.badge {
+      background: linear-gradient(135deg, #F97316, #EA580C);
+      color: white;
+      font-size: 0.75rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .toolbar-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s ease;
+      border: none;
+      outline: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0284C7, #0369A1);
+      color: white;
+      box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #0369A1, #075985);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.1);
+      color: #F1F5F9;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.18);
+    }
+
+    .btn-accent {
+      background: linear-gradient(135deg, #EA580C, #C2410C);
+      color: white;
+      box-shadow: 0 4px 12px rgba(234, 88, 12, 0.35);
+    }
+    .btn-accent:hover {
+      transform: translateY(-1px);
+    }
+
+    /* 16:9 Presentation Slide Canvas */
+    .slide-wrapper {
+      width: 100%;
+      max-width: 1240px;
+      aspect-ratio: 16 / 9;
+      background: var(--bg-slide);
+      border-radius: 12px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* SIH Slide Header */
+    .slide-header {
+      padding: 24px 36px 12px 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 2px solid #E2E8F0;
+      position: relative;
+    }
+
+    .slide-header-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      flex: 1;
+    }
+
+    .team-badge {
+      border: 2px solid #8B5CF6;
+      color: #7C3AED;
+      padding: 6px 18px;
+      border-radius: 999px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      text-align: center;
+      line-height: 1.2;
+      background: #FAF5FF;
+      white-space: nowrap;
+    }
+
+    .slide-title-block {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .slide-main-title {
+      font-size: 1.35rem;
+      font-weight: 800;
+      color: #0F172A;
+      letter-spacing: -0.3px;
+    }
+
+    .slide-section-title {
+      font-size: 1.25rem;
+      font-weight: 800;
+      font-style: italic;
+      color: #1D4ED8;
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .slide-section-title::after {
+      content: '';
+      flex: 1;
+      height: 2px;
+      background: linear-gradient(90deg, #1D4ED8, transparent);
+      max-width: 280px;
+    }
+
+    .sih-logo-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      text-align: right;
+    }
+
+    .sih-logo-img {
+      height: 52px;
+      object-fit: contain;
+    }
+
+    .sih-text {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+    .sih-text-bold {
+      font-weight: 800;
+      font-size: 0.85rem;
+      color: #1E293B;
+      letter-spacing: 0.5px;
+    }
+    .sih-text-year {
+      font-weight: 900;
+      font-size: 1.2rem;
+      color: #0284C7;
+      line-height: 1;
+    }
+
+    /* Main Slide Body: 3-Stage Interactive Cards */
+    .slide-body {
+      flex: 1;
+      padding: 24px 36px 16px 36px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 22px;
+      align-items: stretch;
+      position: relative;
+    }
+
+    /* Flow connector arrows between cards */
+    .flow-arrow-1, .flow-arrow-2 {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 32px;
+      height: 32px;
+      background: white;
+      border: 2px solid #E2E8F0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+      z-index: 10;
+      color: #2563EB;
+      font-weight: bold;
+    }
+    .flow-arrow-1 { left: calc(33.333% - 16px); }
+    .flow-arrow-2 { left: calc(66.666% - 16px); }
+
+    /* Interactive Cards */
+    .solution-card {
+      background: var(--card-bg);
+      border: 1.5px solid #E2E8F0;
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 6px 18px -4px rgba(15, 23, 42, 0.06);
+      overflow: hidden;
+    }
+
+    .solution-card:hover {
+      border-color: #3B82F6;
+      box-shadow: 0 16px 32px -8px rgba(59, 130, 246, 0.18);
+      transform: translateY(-3px);
+    }
+
+    .card-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      padding: 4px 10px;
+      border-radius: 6px;
+      width: fit-content;
+      margin-bottom: 10px;
+    }
+    .badge-step-1 { background: #EEF2FF; color: #4F46E5; }
+    .badge-step-2 { background: #ECFDF5; color: #059669; }
+    .badge-step-3 { background: #FFF7ED; color: #EA580C; }
+
+    .card-title {
+      font-size: 1.08rem;
+      font-weight: 800;
+      color: #0F172A;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-desc {
+      font-size: 0.78rem;
+      color: #64748B;
+      line-height: 1.45;
+      margin-bottom: 14px;
+    }
+
+    /* CARD 1: AI Vision Scanner */
+    .scanner-viewfinder {
+      flex: 1;
+      background: #020617;
+      border-radius: 12px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 180px;
+      box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+    }
+
+    .scanner-bg-monument {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.88;
+      transition: transform 0.5s ease;
+    }
+    .scanner-viewfinder:hover .scanner-bg-monument {
+      transform: scale(1.05);
+    }
+
+    .laser-line {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background: linear-gradient(90deg, transparent, #38BDF8, #60A5FA, transparent);
+      box-shadow: 0 0 14px #38BDF8, 0 0 24px #60A5FA;
+      animation: laserSweep 2.4s infinite alternate ease-in-out;
+      pointer-events: none;
+    }
+
+    @keyframes laserSweep {
+      0% { top: 6%; opacity: 0.4; }
+      50% { opacity: 1; }
+      100% { top: 92%; opacity: 0.4; }
+    }
+
+    .ar-reticle {
+      position: absolute;
+      width: 60%;
+      height: 60%;
+      border: 2px dashed rgba(56, 189, 248, 0.65);
+      border-radius: 8px;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .ar-corner {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-color: #38BDF8;
+      border-style: solid;
+    }
+    .ar-tl { top: -2px; left: -2px; border-width: 3px 0 0 3px; }
+    .ar-tr { top: -2px; right: -2px; border-width: 3px 3px 0 0; }
+    .ar-bl { bottom: -2px; left: -2px; border-width: 0 0 3px 3px; }
+    .ar-br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; }
+
+    .ai-pill-tag {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      right: 12px;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.72rem;
+    }
+
+    .ai-confidence-badge {
+      background: #10B981;
+      color: #064E3B;
+      font-weight: 800;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 0.68rem;
+    }
+
+    .feature-tag-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .feature-chip {
+      background: #F1F5F9;
+      color: #475569;
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    /* CARD 2: Verified History & Multilingual Audio */
+    .dossier-box {
+      flex: 1;
+      background: #F8FAFC;
+      border: 1.5px solid #E2E8F0;
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .asi-verified-ribbon {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #ECFDF5;
+      border: 1px solid #A7F3D0;
+      padding: 6px 10px;
+      border-radius: 8px;
+      color: #065F46;
+      font-size: 0.72rem;
+      font-weight: 700;
+    }
+
+    .audio-player-widget {
+      background: linear-gradient(135deg, #1E1B4B, #312E81);
+      border-radius: 10px;
+      padding: 12px 14px;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      box-shadow: 0 4px 14px rgba(30, 27, 75, 0.25);
+    }
+
+    .audio-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .play-btn {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: #F59E0B;
+      border: none;
+      color: #78350F;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-weight: bold;
+      transition: transform 0.15s ease;
+    }
+    .play-btn:hover {
+      transform: scale(1.1);
+    }
+
+    .audio-wave {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+      flex: 1;
+      margin: 0 12px;
+      height: 24px;
+    }
+    .wave-bar {
+      flex: 1;
+      background: #818CF8;
+      border-radius: 3px;
+      height: 8px;
+      transition: height 0.2s ease;
+    }
+    .audio-playing .wave-bar:nth-child(2n) { animation: wavePulse 0.6s infinite alternate; }
+    .audio-playing .wave-bar:nth-child(2n+1) { animation: wavePulse 0.9s infinite alternate; }
+
+    @keyframes wavePulse {
+      0% { height: 4px; }
+      100% { height: 22px; }
+    }
+
+    .lang-pill-switch {
+      display: flex;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: 20px;
+      padding: 2px;
+      font-size: 0.68rem;
+    }
+    .lang-opt {
+      padding: 2px 8px;
+      border-radius: 16px;
+      cursor: pointer;
+      font-weight: 700;
+      color: #CBD5E1;
+      transition: all 0.2s;
+    }
+    .lang-opt.active {
+      background: white;
+      color: #1E1B4B;
+    }
+
+    .history-snippet {
+      font-size: 0.72rem;
+      color: #334155;
+      line-height: 1.4;
+      background: white;
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #E2E8F0;
+      font-style: italic;
+    }
+
+    /* CARD 3: Smart Travel Companion */
+    .travel-matrix {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .travel-item {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-radius: 8px;
+      padding: 8px 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .travel-item:hover, .travel-item.selected {
+      background: #EFF6FF;
+      border-color: #93C5FD;
+      transform: translateX(3px);
+    }
+
+    .travel-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.95rem;
+      flex-shrink: 0;
+    }
+    .icon-gems { background: #FEF3C7; color: #D97706; }
+    .icon-food { background: #FEE2E2; color: #DC2626; }
+    .icon-hotel { background: #E0E7FF; color: #4F46E5; }
+    .icon-tips { background: #DCFCE7; color: #16A34A; }
+
+    .travel-content {
+      flex: 1;
+      line-height: 1.25;
+    }
+    .travel-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #1E293B;
+    }
+    .travel-sub {
+      font-size: 0.68rem;
+      color: #64748B;
+    }
+
+    .map-radar-chip {
+      background: linear-gradient(135deg, #0EA5E9, #0284C7);
+      color: white;
+      padding: 6px 10px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.72rem;
+      font-weight: 700;
+      margin-top: auto;
+    }
+
+    /* SIH Slide Footer */
+    .slide-footer {
+      background: #0284C7;
+      color: white;
+      padding: 7px 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      background: #10B981;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.85rem;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+      display: none;
+      animation: fadeInUp 0.3s ease;
+      z-index: 1000;
+    }
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Instructions Drawer */
+    .instructions-card {
+      width: 100%;
+      max-width: 1240px;
+      background: #1E293B;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 20px 28px;
+      margin-top: 24px;
+      color: #E2E8F0;
+    }
+
+    .instructions-card h3 {
+      color: #38BDF8;
+      font-size: 1.1rem;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .instructions-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      font-size: 0.82rem;
+      line-height: 1.5;
+    }
+
+    .instr-step {
+      background: rgba(255, 255, 255, 0.04);
+      padding: 14px;
+      border-radius: 8px;
+      border-left: 3px solid #38BDF8;
+    }
+
+    .instr-step strong {
+      color: #F8FAFC;
+      display: block;
+      margin-bottom: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Action Toolbar -->
+  <div class="toolbar">
+    <div class="toolbar-title">
+      <span>🏛️ HeritageLens AI</span>
+      <span class="badge">SIH 2026 Ready</span>
+      <span style="font-size: 0.82rem; color: #94A3B8; font-weight: 500;">Interactive Slide Visualizer</span>
+    </div>
+
+    <div class="toolbar-actions">
+      <button class="btn btn-secondary" onclick="cycleMonument()">
+        🔄 Switch Sample Monument
+      </button>
+      <button class="btn btn-secondary" onclick="toggleFullscreen()">
+        ⛶ Present Slide
+      </button>
+      <button class="btn btn-accent" id="exportBtn" onclick="exportSlideToPNG()">
+        📸 Export High-Res Slide (PNG)
+      </button>
+    </div>
+  </div>
+
+  <!-- The 16:9 Presentation Slide Canvas -->
+  <div class="slide-wrapper" id="slideCanvas">
+    
+    <!-- SIH Official Slide Header -->
+    <header class="slide-header">
+      <div class="slide-header-left">
+        <div class="team-badge" id="teamNameTag" title="Click to edit team name" onclick="editTeamName()">
+          Coffee &amp; Code
+        </div>
+        <div class="slide-title-block">
+          <h1 class="slide-main-title">HeritageLens AI: Photo-Based Cultural Storytelling &amp; Smart Travel Guide</h1>
+          <h2 class="slide-section-title">Proposed Solution</h2>
+        </div>
+      </div>
+
+      <!-- SIH Logo Branding -->
+      <div class="sih-logo-group">
+        <div class="sih-text">
+          <span class="sih-text-bold">SMART INDIA</span>
+          <span class="sih-text-bold" style="font-size: 0.72rem; color: #64748B;">HACKATHON</span>
+          <span class="sih-text-year">2026</span>
+        </div>
+        <!-- SIH Lightbulb SVG Icon -->
+        <svg width="44" height="44" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="46" fill="#F8FAFC" stroke="#E2E8F0" stroke-width="2"/>
+          <path d="M50 20C38 20 28 30 28 42C28 50 33 57 38 62V70C38 72 40 74 42 74H58C60 74 62 72 62 70V62C67 57 72 50 72 42C72 30 62 20 50 20Z" fill="#F59E0B"/>
+          <rect x="42" y="76" width="16" height="4" rx="2" fill="#64748B"/>
+          <rect x="45" y="82" width="10" height="3" rx="1.5" fill="#94A3B8"/>
+          <path d="M50 32V42M42 42L50 50L58 42" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+    </header>
+
+    <!-- Slide Body: 3 Interactive Feature Nodes replacing plain text -->
+    <main class="slide-body">
+
+      <!-- Flow Connectors -->
+      <div class="flow-arrow-1">➔</div>
+      <div class="flow-arrow-2">➔</div>
+
+      <!-- STAGE 1: Multimodal AI Vision Recognition -->
+      <section class="solution-card" id="cardStep1">
+        <span class="card-badge badge-step-1">Phase 1 • AI Vision Scan</span>
+        <h3 class="card-title">
+          <span>📷</span> Multimodal Heritage Vision
+        </h3>
+        <p class="card-desc">
+          Zero-touch identification of Indian monuments, sculpted temples, historic forts, and UNESCO heritage sites from a photo snapshot.
+        </p>
+
+        <!-- Interactive Viewfinder -->
+        <div class="scanner-viewfinder" onclick="triggerLaserScan()" title="Click to simulate camera scan!">
+          <img id="monumentImg" class="scanner-bg-monument" src="https://images.unsplash.com/photo-1600100397608-f010f443b740?w=800&auto=format&fit=crop&q=80" alt="Brihadeeswarar Temple">
+          <div class="laser-line" id="laserScanLine"></div>
+          
+          <div class="ar-reticle">
+            <div class="ar-corner ar-tl"></div>
+            <div class="ar-corner ar-tr"></div>
+            <div class="ar-corner ar-bl"></div>
+            <div class="ar-corner ar-br"></div>
+          </div>
+
+          <div class="ai-pill-tag">
+            <div>
+              <strong id="monumentName">Brihadeeswarar Temple</strong>
+              <div style="font-size: 0.65rem; color: #94A3B8;" id="monumentLoc">Thanjavur, Tamil Nadu</div>
+            </div>
+            <span class="ai-confidence-badge" id="confidenceVal">99.4% Match</span>
+          </div>
+        </div>
+
+        <div class="feature-tag-list">
+          <span class="feature-chip">🏛️ Ancient Temples</span>
+          <span class="feature-chip">🏰 Hill Forts</span>
+          <span class="feature-chip">🗿 Sculptures</span>
+          <span class="feature-chip">⚡ Sub-second Vision</span>
+        </div>
+      </section>
+
+      <!-- STAGE 2: Verified History & Multilingual Narration -->
+      <section class="solution-card" id="cardStep2">
+        <span class="card-badge badge-step-2">Phase 2 • Cultural Storytelling</span>
+        <h3 class="card-title">
+          <span>📜</span> Verified History &amp; Audio
+        </h3>
+        <p class="card-desc">
+          ASI-verified historical dossiers with untold cultural legends, architecture secrets, and hands-free multilingual voice narration.
+        </p>
+
+        <div class="dossier-box">
+          <div class="asi-verified-ribbon">
+            <span>🛡️ ASI &amp; UNESCO Verified</span>
+            <span style="font-size: 0.65rem; background: #D1FAE5; color: #065F46; padding: 2px 6px; border-radius: 4px;">Fact-Checked</span>
+          </div>
+
+          <!-- Interactive Audio Narration Widget -->
+          <div class="audio-player-widget" id="audioPlayerWidget">
+            <div class="audio-controls">
+              <button class="play-btn" id="audioPlayBtn" onclick="toggleAudioNarration()" title="Play audio guide">
+                ▶
+              </button>
+              <div class="audio-wave" id="audioWaveBox">
+                <div class="wave-bar" style="height: 12px;"></div>
+                <div class="wave-bar" style="height: 18px;"></div>
+                <div class="wave-bar" style="height: 8px;"></div>
+                <div class="wave-bar" style="height: 22px;"></div>
+                <div class="wave-bar" style="height: 14px;"></div>
+                <div class="wave-bar" style="height: 19px;"></div>
+                <div class="wave-bar" style="height: 9px;"></div>
+                <div class="wave-bar" style="height: 15px;"></div>
+              </div>
+              <div class="lang-pill-switch">
+                <span class="lang-opt active" id="langEnBtn" onclick="setNarrationLang('en')">EN</span>
+                <span class="lang-opt" id="langHiBtn" onclick="setNarrationLang('hi')">हिन्दी</span>
+              </div>
+            </div>
+            <div style="font-size: 0.68rem; color: #CBD5E1; display: flex; justify-content: space-between;">
+              <span id="audioStatusText">Tap ▶ to listen to cultural audio</span>
+              <span id="audioDuration">01:45</span>
+            </div>
+          </div>
+
+          <!-- History Snippet -->
+          <div class="history-snippet" id="historySnippetText">
+            "Built in 1010 CE by Rajaraja Chola I, the temple's 80-tonne granite dome casts no shadow at noon on the equinox."
+          </div>
+        </div>
+
+        <div class="feature-tag-list">
+          <span class="feature-chip">🎧 Multilingual TTS</span>
+          <span class="feature-chip">🔍 Untold Myths</span>
+          <span class="feature-chip">🏛️ 100% Verified</span>
+        </div>
+      </section>
+
+      <!-- STAGE 3: 360° Smart Travel & Local Ecosystem -->
+      <section class="solution-card" id="cardStep3">
+        <span class="card-badge badge-step-3">Phase 3 • Complete Exploration</span>
+        <h3 class="card-title">
+          <span>🧭</span> Smart Travel Companion
+        </h3>
+        <p class="card-desc">
+          Turns one photo into an entire itinerary—curating nearby hidden gems, authentic regional food, verified stays, and smart travel tips.
+        </p>
+
+        <div class="travel-matrix">
+          <div class="travel-item selected" onclick="selectTravelItem(this, 'gems')">
+            <div class="travel-icon icon-gems">📍</div>
+            <div class="travel-content">
+              <div class="travel-title">Nearby Hidden Gems</div>
+              <div class="travel-sub" id="gemSub">Thanjavur Maratha Palace • 1.2 km away</div>
+            </div>
+          </div>
+
+          <div class="travel-item" onclick="selectTravelItem(this, 'food')">
+            <div class="travel-icon icon-food">🍛</div>
+            <div class="travel-content">
+              <div class="travel-title">Authentic Local Cuisine</div>
+              <div class="travel-sub" id="foodSub">Kumbakonam Degree Coffee &amp; Banana Leaf Thali</div>
+            </div>
+          </div>
+
+          <div class="travel-item" onclick="selectTravelItem(this, 'hotel')">
+            <div class="travel-icon icon-hotel">🏨</div>
+            <div class="travel-content">
+              <div class="travel-title">Heritage Stays &amp; Hotels</div>
+              <div class="travel-sub">Verified Eco-Resorts &amp; Homestays nearby</div>
+            </div>
+          </div>
+
+          <div class="travel-item" onclick="selectTravelItem(this, 'tips')">
+            <div class="travel-icon icon-tips">💡</div>
+            <div class="travel-content">
+              <div class="travel-title">Smart Tourist Advisory</div>
+              <div class="travel-sub">Best visiting hours: 06:00 AM (Skip heat &amp; queues)</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="map-radar-chip">
+          <span>🗺️ Live Geolocation Radius: 5.0 KM</span>
+          <span>● GPS Active</span>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Official SIH Slide Footer -->
+    <footer class="slide-footer">
+      <span>@SIH Idea submission-Template</span>
+      <span>2</span>
+    </footer>
+
+  </div>
+
+  <!-- Quick How-To Use Guide for Presentation & Export -->
+  <div class="instructions-card">
+    <h3>💡 Why this replaces plain text for Smart India Hackathon (SIH) Evaluators</h3>
+    <div class="instructions-grid">
+      <div class="instr-step">
+        <strong>1. Visual Workflow replaces Bullet Points</strong>
+        Evaluators review hundreds of text-heavy slides. This 3-stage visual architecture immediately communicates the end-to-end technical pipeline (Vision AI ➔ Cultural Storytelling ➔ Travel Ecosystem).
+      </div>
+      <div class="instr-step">
+        <strong>2. 1-Click High-Res PNG Export</strong>
+        Click the orange <b>"Export High-Res Slide (PNG)"</b> button above to download a crystal-clear 1920x1080 image file ready to drag-and-drop into PowerPoint, Canva, or Google Slides.
+      </div>
+      <div class="instr-step">
+        <strong>3. Live Demo Power in Pitch Round</strong>
+        During live screening or Q&amp;A, you can open this page, trigger real-time AI scanning, play voice narration in English/Hindi, and interact with the cards live!
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toastMsg">Slide exported successfully!</div>
+
+  <script>
+    // Sample Monuments for live switching
+    const monuments = [
+      {
+        name: "Brihadeeswarar Temple",
+        loc: "Thanjavur, Tamil Nadu",
+        img: "https://images.unsplash.com/photo-1600100397608-f010f443b740?w=800&auto=format&fit=crop&q=80",
+        match: "99.4% Match",
+        factEn: "Built in 1010 CE by Rajaraja Chola I, the temple's 80-tonne granite dome casts no shadow at noon on the equinox.",
+        factHi: "१०१० ईस्वी में राजराज चोल प्रथम द्वारा निर्मित, इसके ८० टन वजनी ग्रेनाइट गुंबद की दोपहर में कोई छाया नहीं पड़ती।",
+        gem: "Thanjavur Maratha Palace • 1.2 km away",
+        food: "Kumbakonam Degree Coffee & Banana Leaf Thali"
+      },
+      {
+        name: "Konark Sun Temple",
+        loc: "Puri, Odisha",
+        img: "https://images.unsplash.com/photo-1628155930542-3c7a64e2c833?w=800&auto=format&fit=crop&q=80",
+        match: "98.8% Match",
+        factEn: "Designed as a colossal chariot with 24 carved stone wheels that function as accurate sundials measuring time to seconds.",
+        factHi: "सूर्य देव के विशाल रथ के रूप में २४ नक्काशीदार पहियों के साथ निर्मित, जो सटीक धूपघड़ी के रूप में समय बताते हैं।",
+        gem: "Chandrabhaga Beach & Marine Drive • 3.5 km",
+        food: "Authentic Odia Chhena Poda & Dalma"
+      },
+      {
+        name: "Hampi Stone Chariot",
+        loc: "Vijayanagara, Karnataka",
+        img: "https://images.unsplash.com/photo-1609137144813-7d9921338f24?w=800&auto=format&fit=crop&q=80",
+        match: "99.1% Match",
+        factEn: "A shrine dedicated to Garuda, intricately carved from interlocking granite blocks that mimic an active moving chariot.",
+        factHi: "भगवान गरुड़ को समर्पित यह रथ मंदिर इंटरलॉकिंग ग्रेनाइट पत्थरों से तराशा गया है।",
+        gem: "Virupaksha Temple & Tungabhadra Ghats • 2.1 km",
+        food: "Traditional Jolada Rotti & Mysore Pak"
+      }
+    ];
+
+    let currentMonumentIndex = 0;
+    let isNarrationPlaying = false;
+    let selectedLang = 'en';
+
+    function cycleMonument() {
+      currentMonumentIndex = (currentMonumentIndex + 1) % monuments.length;
+      const m = monuments[currentMonumentIndex];
+      
+      document.getElementById('monumentName').innerText = m.name;
+      document.getElementById('monumentLoc').innerText = m.loc;
+      document.getElementById('monumentImg').src = m.img;
+      document.getElementById('confidenceVal').innerText = m.match;
+      document.getElementById('gemSub').innerText = m.gem;
+      document.getElementById('foodSub').innerText = m.food;
+      
+      updateFactText();
+      triggerLaserScan();
+      showToast('Switched monument: ' + m.name);
+    }
+
+    function triggerLaserScan() {
+      const line = document.getElementById('laserScanLine');
+      line.style.animation = 'none';
+      line.offsetHeight; /* trigger reflow */
+      line.style.animation = 'laserSweep 1.2s ease-in-out';
+      
+      const badge = document.getElementById('confidenceVal');
+      badge.innerText = 'Analyzing...';
+      badge.style.background = '#F59E0B';
+      
+      setTimeout(() => {
+        badge.innerText = monuments[currentMonumentIndex].match;
+        badge.style.background = '#10B981';
+      }, 1200);
+    }
+
+    function updateFactText() {
+      const m = monuments[currentMonumentIndex];
+      const text = selectedLang === 'hi' ? m.factHi : m.factEn;
+      document.getElementById('historySnippetText').innerText = '"' + text + '"';
+    }
+
+    function setNarrationLang(lang) {
+      selectedLang = lang;
+      document.getElementById('langEnBtn').classList.toggle('active', lang === 'en');
+      document.getElementById('langHiBtn').classList.toggle('active', lang === 'hi');
+      updateFactText();
+      if (isNarrationPlaying) {
+        stopAudioNarration();
+        toggleAudioNarration();
+      }
+    }
+
+    function toggleAudioNarration() {
+      if (isNarrationPlaying) {
+        stopAudioNarration();
+      } else {
+        startAudioNarration();
+      }
+    }
+
+    function startAudioNarration() {
+      isNarrationPlaying = true;
+      document.getElementById('audioPlayBtn').innerText = '⏸';
+      document.getElementById('audioWaveBox').classList.add('audio-playing');
+      document.getElementById('audioStatusText').innerText = 'Playing cultural narration (' + selectedLang.toUpperCase() + ')...';
+
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const m = monuments[currentMonumentIndex];
+        const speechText = selectedLang === 'hi' ? m.factHi : m.factEn;
+        const utterance = new SpeechSynthesisUtterance(speechText);
+        utterance.lang = selectedLang === 'hi' ? 'hi-IN' : 'en-US';
+        utterance.rate = 0.95;
+        utterance.onend = stopAudioNarration;
+        utterance.onerror = stopAudioNarration;
+        window.speechSynthesis.speak(utterance);
+      }
+    }
+
+    function stopAudioNarration() {
+      isNarrationPlaying = false;
+      document.getElementById('audioPlayBtn').innerText = '▶';
+      document.getElementById('audioWaveBox').classList.remove('audio-playing');
+      document.getElementById('audioStatusText').innerText = 'Tap ▶ to listen to cultural audio';
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    }
+
+    function selectTravelItem(element, type) {
+      document.querySelectorAll('.travel-item').forEach(el => el.classList.remove('selected'));
+      element.classList.add('selected');
+    }
+
+    function editTeamName() {
+      const current = document.getElementById('teamNameTag').innerText;
+      const updated = prompt('Enter your SIH Team Name:', current);
+      if (updated && updated.trim()) {
+        document.getElementById('teamNameTag').innerText = updated.trim();
+        showToast('Team name updated to "' + updated.trim() + '"');
+      }
+    }
+
+    function toggleFullscreen() {
+      const slide = document.getElementById('slideCanvas');
+      if (!document.fullscreenElement) {
+        if (slide.requestFullscreen) {
+          slide.requestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+
+    function showToast(msg) {
+      const t = document.getElementById('toastMsg');
+      t.innerText = msg;
+      t.style.display = 'block';
+      setTimeout(() => {
+        t.style.display = 'none';
+      }, 3000);
+    }
+
+    function exportSlideToPNG() {
+      const slide = document.getElementById('slideCanvas');
+      const exportBtn = document.getElementById('exportBtn');
+      const origText = exportBtn.innerHTML;
+      exportBtn.innerHTML = '⏳ Generating Image...';
+      exportBtn.disabled = true;
+
+      // Ensure crisp high-dpi render
+      html2canvas(slide, {
+        scale: 2, // 2x resolution for crisp 1080p PPT slide
+        useCORS: true,
+        backgroundColor: '#FFFFFF',
+        logging: false
+      }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'HeritageLens_SIH_Solution_Slide.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        
+        exportBtn.innerHTML = origText;
+        exportBtn.disabled = false;
+        showToast('🎉 High-Res Slide exported! Drag into your PPT.');
+      }).catch(err => {
+        console.error('Export error:', err);
+        exportBtn.innerHTML = origText;
+        exportBtn.disabled = false;
+        alert('Could not export canvas automatically. You can also use the high-res AI image provided!');
+      });
+    }
+  </script>
+</body>
+</html>
