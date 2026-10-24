@@ -35,11 +35,13 @@ import {
   BookOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HeritageSite } from '../types';
+import { HeritageSite, HotelItem, BookingPlatformConfig } from '../types/index';
 import { HeritageDataStore } from '../services/heritageDataStore';
 import { handleMonumentImageError } from '../utils/imageFallback';
 import { fetchAuthenticPlaceImage } from '../services/geminiService';
 import { VisualImagePickerModal } from './VisualImagePickerModal';
+import { getBookingPlatforms, saveBookingPlatforms, DEFAULT_BOOKING_PLATFORMS } from '../config/bookingPlatforms';
+import { getCuratedHotelsForSite } from '../data/curatedHotelsData';
 import { 
   SAMPLE_HERITAGE_SITE_JSON_STRING, 
   HERITAGE_SITE_SCHEMA_GUIDE, 
@@ -61,7 +63,15 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
   const [searchQuery, setSearchQuery] = useState('');
   
   // Active editing tab
-  const [activeTab, setActiveTab] = useState<'basic' | 'history' | 'facts' | 'travel' | 'nearby' | 'json'>('basic');
+  const [activeTab, setActiveTab] = useState<'basic' | 'history' | 'facts' | 'travel' | 'nearby' | 'hotels' | 'json'>('basic');
+  
+  // Admin booking platforms management
+  const [adminPlatforms, setAdminPlatforms] = useState<BookingPlatformConfig[]>([]);
+
+  useEffect(() => {
+    setAdminPlatforms(getBookingPlatforms());
+  }, []);
+
   
   // Image URL validation & state
   const [imageTestStatus, setImageTestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -717,6 +727,7 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
                   { id: 'facts', labelEn: 'Facts & Folklore', labelHi: 'तथ्य एवं कथाएं' },
                   { id: 'travel', labelEn: 'Travel & Logistics', labelHi: 'यात्रा एवं नियम' },
                   { id: 'nearby', labelEn: 'Nearby Attractions', labelHi: 'निकटवर्ती आकर्षण' },
+                  { id: 'hotels', labelEn: 'Hotels & Booking Sites', labelHi: 'होटल व बुकिंग लिंक' },
                   { id: 'json', labelEn: 'Raw JSON Editor', labelHi: 'रॉ JSON संपादक' },
                 ].map((tab) => (
                   <button
@@ -1419,7 +1430,332 @@ export const HeritageSiteAdminManager: React.FC<HeritageSiteAdminManagerProps> =
                 </div>
               )}
 
+              {/* TAB 5b: HOTELS & BOOKING SITES */}
+              {activeTab === 'hotels' && (
+                <div className="flex flex-col gap-6">
+                  {/* Part A: Curated Stays for this Monument */}
+                  <div className="p-4 rounded-2xl bg-[#FAF8F5] border border-[#E8E2D9] flex flex-col gap-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E8E2D9] pb-3">
+                      <div>
+                        <h4 className="text-xs font-bold tracking-wider uppercase text-[#1A1A1A] flex items-center gap-1.5">
+                          <Building2 className="w-4 h-4 text-[#C05E42]" />
+                          <span>{currentLang === 'en' ? `Curated Stays for ${editingSite.name}` : `${editingSite.name} हेतु प्रमाणित आवास`}</span>
+                        </h4>
+                        <p className="text-[11px] text-[#5C544E] mt-0.5">
+                          {currentLang === 'en'
+                            ? 'Custom hotels, hostels and dharamshalas attached directly to this monument record.'
+                            : 'इस स्मारक से सीधे जुड़े सत्यापित होटल, हॉस्टल व धर्मशालाएं।'}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {(!editingSite.hotels || editingSite.hotels.length === 0) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const defaults = getCuratedHotelsForSite(editingSite.id, editingSite.state || 'Delhi');
+                              handleFieldChange('hotels', defaults);
+                              triggerToast({
+                                message: `Loaded ${defaults.length} default verified stays for ${editingSite.name}`,
+                                type: 'info',
+                              });
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl bg-white border border-[#E8E2D9] hover:bg-[#F3EEE7] text-[#2C4A3E] text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-2xs"
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-[#C05E42]" />
+                            <span>{currentLang === 'en' ? 'Load Curated Defaults' : 'डिफ़ॉल्ट लोड करें'}</span>
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const current = editingSite.hotels || [];
+                            const newHotel: HotelItem = {
+                              id: `custom-hotel-${Date.now()}`,
+                              name: 'New Hotel / Guest House',
+                              category: 'Budget',
+                              distance: `500 m from ${editingSite.name}`,
+                              priceRange: '₹1,200 - ₹2,200 / night',
+                              rating: 4.2,
+                              reviewsCount: 150,
+                              amenities: ['Free WiFi', 'AC', '24/7 Front Desk'],
+                              address: `${editingSite.city || editingSite.state || 'Delhi'}`,
+                              source: 'curated',
+                              notes: 'Comfortable stay close to transit.'
+                            };
+                            handleFieldChange('hotels', [...current, newHotel]);
+                          }}
+                          className="px-3 py-1.5 rounded-xl bg-[#2C4A3E] text-white text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-xs"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>{currentLang === 'en' ? 'Add Hotel' : 'नया होटल जोड़ें'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {(!editingSite.hotels || editingSite.hotels.length === 0) ? (
+                      <div className="p-6 rounded-xl bg-white border border-dashed border-[#D5CDC2] text-center flex flex-col items-center gap-2">
+                        <Building2 className="w-8 h-8 text-[#8C8276]/60" />
+                        <span className="text-xs font-bold text-[#1A1A1A]">
+                          {currentLang === 'en' ? 'No custom hotels attached to this site yet' : 'इस स्मारक में अभी कोई कस्टम होटल नहीं जुड़ा है'}
+                        </span>
+                        <p className="text-[11px] text-[#5C544E] max-w-md">
+                          {currentLang === 'en'
+                            ? 'The app will automatically display global curated stays and Gemini AI suggestions. Click "Load Curated Defaults" above to load and customize hotels specifically for this site.'
+                            : 'ऐप स्वचालित रूप से सत्यापित डिफ़ॉल्ट और AI सुझाव दिखाएगा। इस स्मारक के लिए अलग से सूची तैयार करने हेतु "डिफ़ॉल्ट लोड करें" पर क्लिक करें।'}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-3">
+                        {editingSite.hotels.map((hotel, hIdx) => (
+                          <div
+                            key={hotel.id || hIdx}
+                            className="p-4 rounded-xl bg-white border border-[#E8E2D9] flex flex-col gap-3 shadow-2xs"
+                          >
+                            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
+                              <div className="sm:col-span-5">
+                                <label className="block text-[10px] font-bold text-[#8C827A] mb-1">
+                                  {currentLang === 'en' ? 'Hotel / Dharamshala Name:' : 'होटल / धर्मशाला का नाम:'}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={hotel.name}
+                                  onChange={(e) => {
+                                    const list = [...(editingSite.hotels || [])];
+                                    list[hIdx] = { ...list[hIdx], name: e.target.value };
+                                    handleFieldChange('hotels', list);
+                                  }}
+                                  className="w-full px-2.5 py-1.5 rounded-lg bg-[#FAF8F5] border border-[#E8E2D9] text-xs font-bold text-[#1A1A1A]"
+                                />
+                              </div>
+
+                              <div className="sm:col-span-3">
+                                <label className="block text-[10px] font-bold text-[#8C827A] mb-1">
+                                  {currentLang === 'en' ? 'Category:' : 'श्रेणी:'}
+                                </label>
+                                <select
+                                  value={hotel.category}
+                                  onChange={(e) => {
+                                    const list = [...(editingSite.hotels || [])];
+                                    list[hIdx] = { ...list[hIdx], category: e.target.value };
+                                    handleFieldChange('hotels', list);
+                                  }}
+                                  className="w-full px-2.5 py-1.5 rounded-lg bg-[#FAF8F5] border border-[#E8E2D9] text-xs text-[#1A1A1A]"
+                                >
+                                  <option value="Budget">Budget</option>
+                                  <option value="Hostel / Budget">Hostel / Budget</option>
+                                  <option value="Dharamshala / Sarai">Dharamshala / Sarai</option>
+                                  <option value="Mid-range">Mid-range</option>
+                                  <option value="Luxury Heritage">Luxury Heritage</option>
+                                  <option value="Luxury">Luxury</option>
+                                </select>
+                              </div>
+
+                              <div className="sm:col-span-3">
+                                <label className="block text-[10px] font-bold text-[#8C827A] mb-1">
+                                  {currentLang === 'en' ? 'Tariff (₹ Range):' : 'किराया (₹ दर):'}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={hotel.priceRange}
+                                  onChange={(e) => {
+                                    const list = [...(editingSite.hotels || [])];
+                                    list[hIdx] = { ...list[hIdx], priceRange: e.target.value };
+                                    handleFieldChange('hotels', list);
+                                  }}
+                                  placeholder="e.g. ₹800 - ₹1,500 / night"
+                                  className="w-full px-2.5 py-1.5 rounded-lg bg-[#FAF8F5] border border-[#E8E2D9] text-xs text-[#1A1A1A]"
+                                />
+                              </div>
+
+                              <div className="sm:col-span-1 flex justify-end pt-5">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const list = [...(editingSite.hotels || [])];
+                                    list.splice(hIdx, 1);
+                                    handleFieldChange('hotels', list);
+                                  }}
+                                  className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
+                                  title="Remove hotel"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                              <div>
+                                <label className="block text-[10px] font-bold text-[#8C827A] mb-1">
+                                  {currentLang === 'en' ? 'Distance from monument:' : 'दूरी:'}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={hotel.distance}
+                                  onChange={(e) => {
+                                    const list = [...(editingSite.hotels || [])];
+                                    list[hIdx] = { ...list[hIdx], distance: e.target.value };
+                                    handleFieldChange('hotels', list);
+                                  }}
+                                  placeholder="e.g. 500 m from Red Fort"
+                                  className="w-full px-2 py-1 rounded-md bg-white border border-[#E8E2D9] text-xs text-[#1A1A1A]"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-bold text-[#8C827A] mb-1">
+                                  {currentLang === 'en' ? 'Star Rating (0-5):' : 'स्टार रेटिंग:'}
+                                </label>
+                                <input
+                                  type="number"
+                                  step="0.1"
+                                  min="1"
+                                  max="5"
+                                  value={hotel.rating || 4.2}
+                                  onChange={(e) => {
+                                    const list = [...(editingSite.hotels || [])];
+                                    list[hIdx] = { ...list[hIdx], rating: parseFloat(e.target.value) || 4.0 };
+                                    handleFieldChange('hotels', list);
+                                  }}
+                                  className="w-full px-2 py-1 rounded-md bg-white border border-[#E8E2D9] text-xs text-[#1A1A1A]"
+                                />
+                              </div>
+
+                              <div>
+                                <label className="block text-[10px] font-bold text-[#8C827A] mb-1">
+                                  {currentLang === 'en' ? 'Amenities (comma separated):' : 'सुविधाएं:'}
+                                </label>
+                                <input
+                                  type="text"
+                                  value={(hotel.amenities || []).join(', ')}
+                                  onChange={(e) => {
+                                    const list = [...(editingSite.hotels || [])];
+                                    list[hIdx] = {
+                                      ...list[hIdx],
+                                      amenities: e.target.value.split(',').map(a => a.trim()).filter(Boolean),
+                                    };
+                                    handleFieldChange('hotels', list);
+                                  }}
+                                  placeholder="Free WiFi, AC, Veg Food"
+                                  className="w-full px-2 py-1 rounded-md bg-white border border-[#E8E2D9] text-xs text-[#1A1A1A]"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Part B: Booking Platform Partner Sites & URL Templates Configuration */}
+                  <div className="p-4 rounded-2xl bg-white border border-[#E8E2D9] flex flex-col gap-4 shadow-xs">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#E8E2D9] pb-3">
+                      <div>
+                        <h4 className="text-xs font-bold tracking-wider uppercase text-[#1A1A1A] flex items-center gap-1.5">
+                          <ExternalLink className="w-4 h-4 text-[#C05E42]" />
+                          <span>{currentLang === 'en' ? 'Booking Partner Platforms & URL Templates' : 'बुकिंग पार्टनर वेबसाइट्स व URL टेम्पलेट्स'}</span>
+                        </h4>
+                        <p className="text-[11px] text-[#5C544E] mt-0.5">
+                          {currentLang === 'en'
+                            ? 'Enable, disable or modify deep-search URL templates. Changes apply live without modifying any code.'
+                            : 'वेबसाइट्स को चालू/बंद करें या खोज लिंक बदलें। बदलाव बिना कोड बदले तुरंत लागू होते हैं।'}
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAdminPlatforms(DEFAULT_BOOKING_PLATFORMS);
+                            saveBookingPlatforms(DEFAULT_BOOKING_PLATFORMS);
+                            triggerToast({
+                              message: 'Booking platforms reset to default verified URLs',
+                              type: 'info',
+                            });
+                          }}
+                          className="px-2.5 py-1.5 rounded-xl bg-[#FAF8F5] border border-[#E8E2D9] text-xs font-bold text-[#5C544E] hover:text-[#1A1A1A] cursor-pointer"
+                        >
+                          {currentLang === 'en' ? 'Reset to Defaults' : 'डिफ़ॉल्ट रिसेट'}
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            saveBookingPlatforms(adminPlatforms);
+                            triggerToast({
+                              message: 'Booking platform settings saved successfully!',
+                              type: 'success',
+                            });
+                          }}
+                          className="px-3.5 py-1.5 rounded-xl bg-[#2C4A3E] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs"
+                        >
+                          <Save className="w-3.5 h-3.5 text-[#D4AF37]" />
+                          <span>{currentLang === 'en' ? 'Save Platforms' : 'प्लेटफ़ॉर्म सहेजें'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      {adminPlatforms.map((platform, pIdx) => (
+                        <div
+                          key={platform.id}
+                          className="p-3 rounded-xl bg-[#FAF8F5] border border-[#E8E2D9] flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                        >
+                          <div className="flex items-center gap-3 min-w-[180px]">
+                            <label className="relative flex items-center gap-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={platform.enabled}
+                                onChange={(e) => {
+                                  const updated = [...adminPlatforms];
+                                  updated[pIdx] = { ...updated[pIdx], enabled: e.target.checked };
+                                  setAdminPlatforms(updated);
+                                }}
+                                className="w-4 h-4 accent-[#2C4A3E] rounded cursor-pointer"
+                              />
+                              <span
+                                style={{ backgroundColor: platform.badgeColor }}
+                                className="w-3 h-3 rounded-full shrink-0"
+                              ></span>
+                              <span className="text-xs font-bold text-[#1A1A1A]">{platform.name}</span>
+                            </label>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
+                              platform.enabled ? 'bg-emerald-100 text-emerald-800' : 'bg-neutral-200 text-neutral-600'
+                            }`}>
+                              {platform.enabled ? 'Enabled' : 'Disabled'}
+                            </span>
+                          </div>
+
+                          <div className="flex-1">
+                            <input
+                              type="text"
+                              value={platform.urlTemplate}
+                              onChange={(e) => {
+                                const updated = [...adminPlatforms];
+                                updated[pIdx] = { ...updated[pIdx], urlTemplate: e.target.value };
+                                setAdminPlatforms(updated);
+                              }}
+                              className="w-full px-2.5 py-1.5 rounded-lg bg-white border border-[#E8E2D9] text-xs font-mono text-[#1A1A1A]"
+                              placeholder="https://.../?query={query}"
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="p-3 rounded-xl bg-blue-50/70 border border-blue-200 text-[11px] text-blue-900 flex items-start gap-2">
+                      <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                      <span>
+                        Supported URL placeholders: <code className="bg-white/80 px-1 py-0.5 rounded font-mono font-bold">&#123;query&#125;</code> (hotel + destination), <code className="bg-white/80 px-1 py-0.5 rounded font-mono font-bold">&#123;city&#125;</code>, <code className="bg-white/80 px-1 py-0.5 rounded font-mono font-bold">&#123;place&#125;</code>. All parameters are safely URL-encoded automatically.
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* TAB 6: RAW JSON EDITOR */}
+
               {activeTab === 'json' && (
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between">

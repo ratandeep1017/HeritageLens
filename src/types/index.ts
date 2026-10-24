@@ -39,11 +39,39 @@ export interface HeritageSite {
     distance: string;
     description: string;
   }[];
+  hotels?: HotelItem[];
   imageUrl: string;
   imageAlt: string;
   sourceNote: string;
   tags: string[];
 }
+
+export interface HotelItem {
+  id: string;
+  name: string;
+  category: 'Budget' | 'Mid-range' | 'Luxury' | 'Hostel' | 'Dharamshala / Sarai' | string;
+  distance: string;
+  priceRange: string;
+  rating: number;
+  reviewsCount?: number;
+  amenities: string[];
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+  source: 'curated' | 'gemini_suggested';
+  notes?: string;
+  directUrl?: string;
+}
+
+export interface BookingPlatformConfig {
+  id: string;
+  name: string;
+  badgeColor: string;
+  textColor?: string;
+  urlTemplate: string;
+  enabled: boolean;
+}
+
 
 export interface IdentificationResult {
   siteId?: string;

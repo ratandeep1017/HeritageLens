@@ -17,9 +17,10 @@ import {
   getInitialSeedData,
 } from './server/db.js';
 import { initCloudinary, uploadToCloudinary, isCloudinaryReady } from './server/cloudinary.js';
-import { identifyMonumentImage, generateSiteDossier, isGeminiAvailable, searchImagesWithGemini } from './server/gemini.js';
+import { identifyMonumentImage, generateSiteDossier, isGeminiAvailable, searchImagesWithGemini, getNearbyHotelSuggestions } from './server/gemini.js';
 import { searchPlacePhotos, isGooglePlacesConfigured, getGooglePlacesApiKey } from './server/places.js';
 import { validateSearchQuery } from './server/validator.js';
+import { getCuratedHotels } from './server/curatedHotels.js';
 
 // Admin active session token store (memory cache)
 const activeAdminTokens = new Set();
@@ -157,7 +158,88 @@ app.get('/api/sites/:id', async (req, res) => {
   }
 });
 
+// Hotel in-memory cache (TTL: 24 hours to prevent repeated Gemini token usage)
+const hotelSuggestionsCache = new Map();
+const HOTEL_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
+// 3b. GET nearby hotel suggestions (Hybrid: Curated + Gemini AI + Fallback)
+app.get('/api/hotels/nearby', async (req, res) => {
+  try {
+    const { siteId, place, city, lat, lng } = req.query;
+    const targetPlace = place || (siteId ? siteId.replace(/-/g, ' ') : 'Heritage Monument');
+    const targetCity = city || 'Delhi';
+    const latitude = lat ? parseFloat(lat) : null;
+    const longitude = lng ? parseFloat(lng) : null;
+
+    // 1. Check if site has custom curated hotels in DB or local file
+    let siteHotels = [];
+    if (siteId) {
+      let site = null;
+      if (isDbConnected()) {
+        site = await getSiteByIdFromDb(siteId);
+      }
+      if (!site) {
+        const sites = readSitesFromFile();
+        site = sites.find((s) => s.id === siteId || s.id.toLowerCase() === siteId.toLowerCase());
+      }
+      if (site && Array.isArray(site.hotels) && site.hotels.length > 0) {
+        siteHotels = site.hotels;
+      }
+    }
+
+    // 2. If no custom DB hotels, check curated catalog
+    if (siteHotels.length === 0 && siteId) {
+      siteHotels = getCuratedHotels(siteId, targetCity);
+    }
+
+    // 3. Try Gemini AI if available
+    let aiHotels = [];
+    const cacheKey = `${targetPlace.toLowerCase().trim()}_${targetCity.toLowerCase().trim()}`;
+    const cachedEntry = hotelSuggestionsCache.get(cacheKey);
+
+    if (cachedEntry && (Date.now() - cachedEntry.timestamp < HOTEL_CACHE_TTL_MS)) {
+      aiHotels = cachedEntry.hotels;
+    } else if (isGeminiAvailable()) {
+      try {
+        aiHotels = await getNearbyHotelSuggestions(targetPlace, targetCity, latitude, longitude);
+        hotelSuggestionsCache.set(cacheKey, {
+          hotels: aiHotels,
+          timestamp: Date.now(),
+        });
+      } catch (geminiErr) {
+        console.warn(`[AI Hotels] Gemini suggestions failed for "${targetPlace}":`, geminiErr.message);
+      }
+    }
+
+    // 4. Merge results: Curated first, then AI suggestions (deduped by name)
+    const existingNames = new Set(siteHotels.map((h) => (h.name || '').toLowerCase().trim()));
+    const uniqueAiHotels = aiHotels.filter((h) => !existingNames.has((h.name || '').toLowerCase().trim()));
+    const finalHotels = [...siteHotels, ...uniqueAiHotels];
+
+    const resultHotels = finalHotels.length > 0 ? finalHotels : getCuratedHotels('default', targetCity);
+
+    res.json({
+      success: true,
+      place: targetPlace,
+      city: targetCity,
+      source: aiHotels.length > 0 ? 'hybrid' : 'curated',
+      count: resultHotels.length,
+      data: resultHotels,
+    });
+  } catch (error) {
+    console.error('GET /api/hotels/nearby error:', error);
+    const fallback = getCuratedHotels(req.query.siteId || 'default', req.query.city || 'Delhi');
+    res.json({
+      success: true,
+      source: 'fallback',
+      count: fallback.length,
+      data: fallback,
+    });
+  }
+});
+
 // 4. PUT update or insert (upsert) heritage site
+
 app.put('/api/sites/:id', async (req, res) => {
   try {
     const { id } = req.params;

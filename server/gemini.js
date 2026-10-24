@@ -337,3 +337,87 @@ RULES:
   return [];
 }
 
+/**
+ * 4. Generate nearby hotel and stay suggestions using Gemini AI.
+ * Returns strict JSON array of accommodations tailored to Indian travelers.
+ */
+export async function getNearbyHotelSuggestions(placeName, city = 'Delhi', lat = null, lng = null) {
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    throw new Error('AI service is not configured on the server environment.');
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
+
+  const coordsHint = (lat && lng) ? ` (coordinates: ${lat}, ${lng})` : '';
+  const promptText = `Suggest 3 to 4 real, popular, and varied hotel/stay options near "${placeName}" in "${city}"${coordsHint}.
+Include:
+1. One affordable budget room or backpacker hostel (e.g. Zostel / OYO / guest house).
+2. One authentic cultural stay or dharamshala / pilgrim yatri niwas / sarai if near a religious or historical landmark (or an affordable family guest house).
+3. One comfortable mid-range hotel.
+4. One heritage haveli or boutique/luxury hotel if famous in that area.
+
+Return ONLY a valid JSON array of objects. Schema:
+[
+  {
+    "id": "ai-hotel-1",
+    "name": "Hotel Name",
+    "category": "Budget" | "Mid-range" | "Luxury" | "Hostel" | "Dharamshala / Sarai",
+    "distance": "e.g., 500 m from ${placeName}",
+    "priceRange": "e.g., ₹1,200 - ₹2,000 / night",
+    "rating": 4.2,
+    "reviewsCount": 450,
+    "amenities": ["Free WiFi", "AC", "24/7 Front Desk"],
+    "address": "Locality or street name, ${city}",
+    "source": "gemini_suggested",
+    "notes": "Brief one-sentence helpful tip for travelers"
+  }
+]`;
+
+  const { response } = await callGemini(ai, {
+    contents: [{ role: 'user', parts: [{ text: promptText }] }],
+    config: {
+      temperature: 0.3,
+      responseMimeType: 'application/json',
+    },
+  });
+
+  const rawText = response?.text || '';
+  let parsed = null;
+  try {
+    const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+    parsed = JSON.parse(cleanJson);
+  } catch (e) {
+    const jsonMatch = rawText.match(/\[[\s\S]*\]/);
+    if (jsonMatch) {
+      parsed = JSON.parse(jsonMatch[0]);
+    } else {
+      throw new Error('Failed to parse hotel recommendations from AI engine.');
+    }
+  }
+
+  if (!Array.isArray(parsed)) {
+    if (parsed && Array.isArray(parsed.hotels)) {
+      parsed = parsed.hotels;
+    } else {
+      throw new Error('AI hotel output is not a valid list.');
+    }
+  }
+
+  return parsed.map((h, idx) => ({
+    id: h.id || `ai-hotel-${idx}-${Date.now()}`,
+    name: h.name || 'Nearby Accommodation',
+    category: h.category || 'Budget',
+    distance: h.distance || `Near ${placeName}`,
+    priceRange: h.priceRange || '₹1,500 - ₹3,000 / night',
+    rating: typeof h.rating === 'number' ? h.rating : 4.2,
+    reviewsCount: typeof h.reviewsCount === 'number' ? h.reviewsCount : 350,
+    amenities: Array.isArray(h.amenities) && h.amenities.length > 0 ? h.amenities : ['Free WiFi', 'AC', 'Room Service'],
+    address: h.address || `${placeName}, ${city}`,
+    source: 'gemini_suggested',
+    notes: h.notes || `Convenient stay option when visiting ${placeName}.`,
+    latitude: typeof h.latitude === 'number' ? h.latitude : (lat ? Number(lat) : undefined),
+    longitude: typeof h.longitude === 'number' ? h.longitude : (lng ? Number(lng) : undefined),
+  }));
+}
+

@@ -12,6 +12,13 @@ interface SiteLocationMapProps {
   category?: string;
   state?: string;
   currentLang: 'en' | 'hi';
+  hotelMarkers?: Array<{
+    name: string;
+    latitude: number;
+    longitude: number;
+    category?: string;
+    priceRange?: string;
+  }>;
 }
 
 type MapMode = 'streets' | 'satellite' | 'embed';
@@ -23,11 +30,13 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
   areaName,
   category,
   state,
-  currentLang
+  currentLang,
+  hotelMarkers
 }) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
+  const hotelLayerGroupRef = useRef<L.LayerGroup | null>(null);
   const tileLayerRef = useRef<L.TileLayer | null>(null);
 
   const [mapMode, setMapMode] = useState<MapMode>('streets');
@@ -224,6 +233,52 @@ export const SiteLocationMap: React.FC<SiteLocationMapProps> = ({
       }
     };
   }, [latitude, longitude, siteName, areaName, category, state, hasValidCoordinates, effectiveLat, effectiveLng, mapMode === 'embed']);
+
+  // Update hotel pins dynamically on the map
+  useEffect(() => {
+    if (!mapInstanceRef.current || !isLoaded) return;
+
+    if (hotelLayerGroupRef.current) {
+      hotelLayerGroupRef.current.clearLayers();
+    } else {
+      hotelLayerGroupRef.current = L.layerGroup().addTo(mapInstanceRef.current);
+    }
+
+    if (!hotelMarkers || hotelMarkers.length === 0) return;
+
+    hotelMarkers.forEach((hotel) => {
+      if (typeof hotel.latitude !== 'number' || typeof hotel.longitude !== 'number' || isNaN(hotel.latitude) || isNaN(hotel.longitude)) return;
+
+      const hotelPinHtml = `
+        <div style="width: 28px; height: 28px; background-color: #0284c7; border: 2.5px solid #FFFFFF; border-radius: 9999px; box-shadow: 0 3px 8px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; color: #FFFFFF; font-size: 13px; cursor: pointer;">
+          🏨
+        </div>
+      `;
+      const hotelIcon = L.divIcon({
+        html: hotelPinHtml,
+        className: 'hotel-map-pin',
+        iconSize: [28, 28],
+        iconAnchor: [14, 14],
+        popupAnchor: [0, -14],
+      });
+
+      const hMarker = L.marker([hotel.latitude, hotel.longitude], { icon: hotelIcon });
+      const hPopup = `
+        <div style="font-family: inherit; padding: 4px; max-width: 190px;">
+          <div style="font-size: 9px; font-weight: 700; text-transform: uppercase; color: #0284c7; letter-spacing: 0.5px; margin-bottom: 2px;">
+            ${hotel.category || 'Hotel / Stay'}
+          </div>
+          <div style="font-size: 12px; font-weight: 700; color: #1A1A1A; line-height: 1.2;">
+            ${hotel.name}
+          </div>
+          ${hotel.priceRange ? `<div style="font-size: 11px; font-weight: 700; color: #15803d; margin-top: 3px;">${hotel.priceRange}</div>` : ''}
+        </div>
+      `;
+      hMarker.bindPopup(hPopup);
+      hotelLayerGroupRef.current?.addLayer(hMarker);
+    });
+  }, [hotelMarkers, isLoaded]);
+
 
   // Recenter helper
   const handleRecenter = () => {

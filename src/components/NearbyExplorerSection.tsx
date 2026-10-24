@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   MapPin, 
   Utensils, 
@@ -12,11 +12,16 @@ import {
   ChevronRight,
   ExternalLink,
   Info,
-  CheckCircle2
+  CheckCircle2,
+  Building2,
+  Star
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { CuratedSiteNearbyData, getCuratedNearbyForSite } from '../data/delhiNearbyData';
 import { SiteLocationMap } from './SiteLocationMap';
+import { HotelItem, BookingPlatformConfig } from '../types/index';
+import { getBookingPlatforms, buildBookingUrl } from '../config/bookingPlatforms';
+import { fetchNearbyHotels } from '../services/hotelService';
 
 interface NearbyExplorerSectionProps {
   siteId: string;
@@ -41,7 +46,19 @@ export const NearbyExplorerSection: React.FC<NearbyExplorerSectionProps> = ({
   nearbyAttractions,
   currentLang
 }) => {
-  const [activeFilter, setActiveFilter] = useState<'all' | 'heritage' | 'food' | 'markets'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'heritage' | 'food' | 'markets' | 'hotels'>('all');
+
+  // Hotel suggestions state
+  const [hotels, setHotels] = useState<HotelItem[]>([]);
+  const [hotelsLoading, setHotelsLoading] = useState<boolean>(true);
+  const [hotelsSource, setHotelsSource] = useState<'hybrid' | 'curated' | 'fallback'>('curated');
+  const [hotelCategoryFilter, setHotelCategoryFilter] = useState<string>('all');
+  const [bookingPlatforms, setBookingPlatforms] = useState<BookingPlatformConfig[]>([]);
+
+  useEffect(() => {
+    setBookingPlatforms(getBookingPlatforms());
+  }, []);
+
 
   // Retrieve curated local dataset if available
   const nearbyData = getCuratedNearbyForSite(siteId);
@@ -64,6 +81,43 @@ export const NearbyExplorerSection: React.FC<NearbyExplorerSectionProps> = ({
     : fallbackHeritageList;
   const foodList = nearbyData?.foodSpots || [];
   const marketList = nearbyData?.artisanMarkets || [];
+
+  // Fetch hotels for the current monument and coordinates
+  useEffect(() => {
+    let isSubscribed = true;
+    setHotelsLoading(true);
+
+    fetchNearbyHotels({
+      siteId,
+      placeName: siteName,
+      city: state || areaName || 'Delhi',
+      latitude: effectiveLat,
+      longitude: effectiveLng,
+    }).then((res) => {
+      if (isSubscribed) {
+        setHotels(res.hotels);
+        setHotelsSource(res.source);
+        setHotelsLoading(false);
+      }
+    });
+
+    return () => {
+      isSubscribed = false;
+    };
+  }, [siteId, siteName, effectiveLat, effectiveLng, state, areaName]);
+
+  const enabledPlatforms = bookingPlatforms.filter((p) => p.enabled);
+
+  const filteredHotels = hotels.filter((h) => {
+    if (hotelCategoryFilter === 'all') return true;
+    const cat = (h.category || '').toLowerCase();
+    if (hotelCategoryFilter === 'budget') return cat.includes('budget') || cat.includes('hostel');
+    if (hotelCategoryFilter === 'dharamshala') return cat.includes('dharamshala') || cat.includes('sarai') || cat.includes('hostel');
+    if (hotelCategoryFilter === 'mid') return cat.includes('mid') || cat.includes('standard');
+    if (hotelCategoryFilter === 'luxury') return cat.includes('luxury') || cat.includes('heritage') || cat.includes('boutique');
+    return true;
+  });
+
 
   return (
     <div 
@@ -143,6 +197,18 @@ export const NearbyExplorerSection: React.FC<NearbyExplorerSectionProps> = ({
             <ShoppingBag className="w-3.5 h-3.5" />
             <span>{currentLang === 'en' ? 'Artisan Markets' : 'शिल्प बाज़ार'}</span>
           </button>
+          <button
+            type="button"
+            onClick={() => setActiveFilter('hotels')}
+            className={`min-h-[44px] px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer focus-visible:ring-2 focus-visible:ring-[#C05E42] ${
+              activeFilter === 'hotels'
+                ? 'bg-[#2C4A3E] text-white shadow-2xs'
+                : 'text-[#5C544E] hover:text-[#1A1A1A]'
+            } ${currentLang === 'hi' ? 'font-devanagari' : ''}`}
+          >
+            <Building2 className="w-3.5 h-3.5" />
+            <span>{currentLang === 'en' ? 'Hotels & Stays' : 'होटल व आवास'}</span>
+          </button>
         </div>
       </div>
 
@@ -156,8 +222,18 @@ export const NearbyExplorerSection: React.FC<NearbyExplorerSectionProps> = ({
           category={category}
           state={state}
           currentLang={currentLang}
+          hotelMarkers={hotels
+            .filter((h) => typeof h.latitude === 'number' && typeof h.longitude === 'number')
+            .map((h) => ({
+              name: h.name,
+              latitude: h.latitude!,
+              longitude: h.longitude!,
+              category: h.category,
+              priceRange: h.priceRange,
+            }))}
         />
       </div>
+
 
       {/* ========================================================================= */}
       {/* 1. NEARBY HERITAGE & CULTURAL SITES                                       */}
@@ -332,8 +408,229 @@ export const NearbyExplorerSection: React.FC<NearbyExplorerSectionProps> = ({
       )}
 
       {/* ========================================================================= */}
+      {/* 3b. NEARBY HOTELS & STAYS (CURATED + GEMINI AI + DEEP BOOKING BUTTONS)     */}
+      {/* ========================================================================= */}
+      {(activeFilter === 'all' || activeFilter === 'hotels') && (
+        <div id="nearby-hotels-subpanel" className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E8E2D9] pb-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h4 className="text-xs uppercase tracking-wider font-bold text-[#8C8276] flex items-center gap-1.5">
+                  <Building2 className="w-4 h-4 text-[#C05E42]" />
+                  <span>{currentLang === 'en' ? 'Nearby Hotels, Stays & Dharamshalas' : 'समीपवर्ती होटल, आश्रम व धर्मशालाएं'}</span>
+                </h4>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#2C4A3E]/10 text-[#2C4A3E]">
+                  {hotelsSource === 'hybrid' ? '✨ AI + Curated' : '✅ Curated Local'}
+                </span>
+              </div>
+              <p className="text-[11px] text-[#5C544E] mt-0.5">
+                {currentLang === 'en' 
+                  ? 'Recommended stays from budget dharamshalas to heritage rooms with direct booking links.' 
+                  : 'सस्ती धर्मशालाओं से लेकर हेरिटेज होटलों तक ठहरने के विकल्प, सीधे बुकिंग लिंक के साथ।'}
+              </p>
+            </div>
+            
+            <span className="text-[11px] font-semibold text-[#8C8276] shrink-0 self-start sm:self-auto">
+              {filteredHotels.length} {currentLang === 'en' ? 'stays nearby' : 'आवास उपलब्ध'}
+            </span>
+          </div>
+
+          {/* Category Filter Buttons */}
+          <div className="flex flex-wrap items-center gap-1.5">
+            {[
+              { id: 'all', labelEn: 'All Stays', labelHi: 'सभी आवास' },
+              { id: 'budget', labelEn: 'Budget (< ₹1,500)', labelHi: 'बजट (< ₹1,500)' },
+              { id: 'dharamshala', labelEn: 'Dharamshalas & Hostels', labelHi: 'धर्मशालाएं व हॉस्टल' },
+              { id: 'mid', labelEn: 'Mid-range', labelHi: 'मध्यम वर्ग' },
+              { id: 'luxury', labelEn: 'Heritage & Luxury', labelHi: 'हेरिटेज व लक्जरी' }
+            ].map(cat => (
+              <button
+                key={cat.id}
+                type="button"
+                onClick={() => setHotelCategoryFilter(cat.id)}
+                className={`text-[11px] font-semibold px-3 py-1.5 rounded-xl border transition-all cursor-pointer ${
+                  hotelCategoryFilter === cat.id
+                    ? 'bg-[#C05E42] text-white border-[#C05E42] shadow-2xs'
+                    : 'bg-white text-[#5C544E] border-[#E8E2D9] hover:bg-[#F3EEE7]'
+                }`}
+              >
+                {currentLang === 'en' ? cat.labelEn : cat.labelHi}
+              </button>
+            ))}
+          </div>
+
+          {/* Hotel Cards Grid */}
+          {hotelsLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[1, 2, 3, 4].map(idx => (
+                <div key={idx} className="p-5 rounded-2xl bg-white border border-[#E8E2D9] animate-pulse flex flex-col gap-3">
+                  <div className="h-4 bg-[#E8E2D9] rounded w-2/3"></div>
+                  <div className="h-3 bg-[#E8E2D9] rounded w-1/3"></div>
+                  <div className="h-10 bg-[#E8E2D9] rounded w-full mt-2"></div>
+                </div>
+              ))}
+            </div>
+          ) : filteredHotels.length === 0 ? (
+            <div className="p-6 rounded-2xl bg-white border border-[#E8E2D9] text-center text-xs text-[#8C8276]">
+              {currentLang === 'en' ? 'No stays match this filter.' : 'इस फ़िल्टर में कोई आवास नहीं मिला।'}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {filteredHotels.map(hotel => (
+                <div
+                  key={hotel.id}
+                  className="p-5 rounded-2xl bg-white border border-[#E8E2D9] hover:border-[#C05E42]/50 hover:shadow-sm transition-all flex flex-col justify-between gap-4"
+                >
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md border ${
+                          (hotel.category || '').toLowerCase().includes('dharamshala') || (hotel.category || '').toLowerCase().includes('sarai')
+                            ? 'bg-amber-50 text-amber-800 border-amber-200'
+                            : (hotel.category || '').toLowerCase().includes('luxury') || (hotel.category || '').toLowerCase().includes('heritage')
+                            ? 'bg-purple-50 text-purple-800 border-purple-200'
+                            : (hotel.category || '').toLowerCase().includes('hostel') || (hotel.category || '').toLowerCase().includes('budget')
+                            ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                            : 'bg-blue-50 text-blue-800 border-blue-200'
+                        }`}>
+                          {hotel.category}
+                        </span>
+                        {hotel.source === 'curated' ? (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-green-50 text-green-700 border border-green-200 flex items-center gap-1">
+                            <CheckCircle2 className="w-2.5 h-2.5" />
+                            <span>{currentLang === 'en' ? 'Verified' : 'प्रमाणित'}</span>
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200 flex items-center gap-1">
+                            <Sparkles className="w-2.5 h-2.5" />
+                            <span>{currentLang === 'en' ? 'AI Suggested' : 'AI सुझाव'}</span>
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1 text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 font-bold text-xs shrink-0">
+                        <Star className="w-3 h-3 fill-amber-500 text-amber-500" />
+                        <span>{hotel.rating.toFixed(1)}</span>
+                        {hotel.reviewsCount && (
+                          <span className="text-[10px] text-amber-800/80 font-normal">({hotel.reviewsCount})</span>
+                        )}
+                      </div>
+                    </div>
+
+                    <h5 className="text-base font-bold text-[#1A1A1A] leading-tight mt-1">
+                      {hotel.name}
+                    </h5>
+
+                    <div className="flex items-center gap-1.5 text-xs text-[#5C544E]">
+                      <MapPin className="w-3.5 h-3.5 text-[#C05E42] shrink-0" />
+                      <span>{hotel.distance}</span>
+                    </div>
+
+                    {hotel.notes && (
+                      <p className="text-xs text-[#6F675F] italic bg-[#FBF9F5] p-2 rounded-lg border border-[#EDE8E1]">
+                        "{hotel.notes}"
+                      </p>
+                    )}
+
+                    {/* Amenities pills */}
+                    {hotel.amenities && hotel.amenities.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {hotel.amenities.slice(0, 4).map((amenity, i) => (
+                          <span key={i} className="text-[10px] px-2 py-0.5 rounded-md bg-[#F3EEE7] text-[#5C544E] font-medium">
+                            {amenity}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Pricing and Action Buttons */}
+                  <div className="pt-3 border-t border-[#E8E2D9] flex flex-col gap-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] uppercase font-bold text-[#8C8276] tracking-wider">
+                        {currentLang === 'en' ? 'Est. Tariff' : 'अनुमानित किराया'}:
+                      </span>
+                      <span className="text-sm font-extrabold text-[#2C4A3E]">
+                        {hotel.priceRange}
+                      </span>
+                    </div>
+
+                    {/* "Book On" website buttons */}
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[10px] font-bold text-[#8C8276] uppercase tracking-wide">
+                        {currentLang === 'en' ? 'Book or check rates on:' : 'कमरे देखें व बुक करें:'}
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {enabledPlatforms.map((platform) => {
+                          const targetUrl = buildBookingUrl(platform.urlTemplate, {
+                            hotelName: hotel.name,
+                            placeName: siteName,
+                            city: state || areaName || 'Delhi',
+                            lat: hotel.latitude,
+                            lng: hotel.longitude,
+                          });
+
+                          return (
+                            <a
+                              key={platform.id}
+                              href={targetUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ backgroundColor: platform.badgeColor, color: platform.textColor || '#fff' }}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold shadow-2xs hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+                              title={`Check ${hotel.name} on ${platform.name}`}
+                            >
+                              <span>{platform.name}</span>
+                              <ExternalLink className="w-2.5 h-2.5 shrink-0 opacity-80" />
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Quick Search All Hotels Banner */}
+          <div className="p-4 rounded-2xl bg-[#F3EEE7] border border-[#E8E2D9] flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-1">
+            <div className="flex flex-col">
+              <span className="text-xs font-bold text-[#1A1A1A]">
+                {currentLang === 'en' ? `Looking for more hotels around ${effectiveArea}?` : `क्या आप ${effectiveArea} के आसपास अन्य विकल्प ढूंढ रहे हैं?`}
+              </span>
+              <span className="text-[11px] text-[#5C544E]">
+                {currentLang === 'en' ? `Search all available stays near ${siteName} on partner sites:` : `सभी उपलब्ध कमरे सीधे इन वेबसाइट्स पर खोजें:`}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {enabledPlatforms.slice(0, 3).map((platform) => {
+                const areaUrl = buildBookingUrl(platform.urlTemplate, {
+                  placeName: siteName,
+                  city: state || areaName || 'Delhi',
+                });
+                return (
+                  <a
+                    key={`gen-${platform.id}`}
+                    href={areaUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-3 py-1.5 rounded-xl bg-white border border-[#D5CDC2] text-[#2C4A3E] text-xs font-bold hover:bg-[#2C4A3E] hover:text-white transition-all flex items-center gap-1 shadow-2xs"
+                  >
+                    <span>{platform.name}</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
       {/* 4. "VERIFY BEFORE VISITING" NOTE FOR TIMINGS, PRICES & AVAILABILITY        */}
       {/* ========================================================================= */}
+
       <div 
         id="nearby-verify-before-visiting-notice"
         className="p-4 rounded-2xl bg-amber-50/80 border border-amber-200/90 flex items-start gap-3 text-xs text-amber-950 shadow-2xs mt-2"
