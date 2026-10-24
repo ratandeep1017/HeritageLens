@@ -31,6 +31,7 @@ interface NearbyExplorerSectionProps {
   latitude?: number;
   longitude?: number;
   state?: string;
+  city?: string;
   nearbyAttractions?: { name: string; distance: string; description: string }[];
   currentLang: 'en' | 'hi';
 }
@@ -43,6 +44,7 @@ export const NearbyExplorerSection: React.FC<NearbyExplorerSectionProps> = ({
   latitude,
   longitude,
   state,
+  city,
   nearbyAttractions,
   currentLang
 }) => {
@@ -65,7 +67,7 @@ export const NearbyExplorerSection: React.FC<NearbyExplorerSectionProps> = ({
 
   const effectiveLat = latitude || nearbyData?.coordinates.latitude;
   const effectiveLng = longitude || nearbyData?.coordinates.longitude;
-  const effectiveArea = areaName || nearbyData?.coordinates.areaName || state || 'India';
+  const effectiveArea = areaName || nearbyData?.coordinates.areaName || city || state || 'India';
 
   // If curated Delhi list exists, use it; otherwise use AI-generated nearbyAttractions
   const fallbackHeritageList = (nearbyAttractions || []).map((att, idx) => ({
@@ -90,7 +92,7 @@ export const NearbyExplorerSection: React.FC<NearbyExplorerSectionProps> = ({
     fetchNearbyHotels({
       siteId,
       placeName: siteName,
-      city: state || areaName || 'Delhi',
+      city: city || state || areaName || 'Delhi',
       latitude: effectiveLat,
       longitude: effectiveLng,
     }).then((res) => {

@@ -871,6 +871,7 @@ export const ResultPage: React.FC<ResultPageProps> = ({ currentLang }) => {
                 latitude={site.coordinates?.lat || site.latitude}
                 longitude={site.coordinates?.lng || site.longitude}
                 state={site.state}
+                city={site.city}
                 nearbyAttractions={site.nearbyAttractions}
                 currentLang={currentLang}
               />
