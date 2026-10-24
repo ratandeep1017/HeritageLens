@@ -48,6 +48,7 @@ import { ApiKeyPromptModal } from '../components/ApiKeyPromptModal';
 import { VisualImagePickerModal } from '../components/VisualImagePickerModal';
 import { handleMonumentImageError } from '../utils/imageFallback';
 import { findExistingHeritageSite } from '../utils/monumentMatcher';
+import { HowToUseDossierGuide } from '../components/HowToUseDossierGuide';
 
 interface HomePageProps {
   currentLang: 'en' | 'hi';
@@ -876,6 +877,9 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
       )}
 
 
+
+      {/* 3.8. HOW TO USE HERITAGELENS & WHAT INFORMATION YOU UNLOCK */}
+      <HowToUseDossierGuide currentLang={currentLang} />
 
       {/* 4. ALL-INDIA FEATURED HERITAGE COLLECTION */}
       <section id="monuments-collection" className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 flex flex-col gap-6">
