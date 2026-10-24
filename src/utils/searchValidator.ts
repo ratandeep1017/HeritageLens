@@ -40,16 +40,30 @@ export interface ValidationResult {
   reasonHi?: string;
 }
 
+/**
+ * Strips Google Maps ratings, review counters, stars, and quotes from search queries.
+ * e.g. "Dargah Nizamuddin Aulia 4.6(27K)" -> "Dargah Nizamuddin Aulia"
+ */
+export function cleanSearchQuery(query: string): string {
+  if (!query || typeof query !== 'string') return '';
+  return query
+    .replace(/\b\d+(\.\d+)?\s*(\(\s*[\d,.]+[kKmM]?\s*\)|\*|★|stars?|reviews?)?/gi, '')
+    .replace(/\(\s*[\d,.]+[kKmM]?\s*\)/gi, '')
+    .replace(/["'“”]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function validateClientSearchQuery(query: string): ValidationResult {
-  if (!query || typeof query !== 'string') {
+  const cleaned = cleanSearchQuery(query);
+  const trimmed = cleaned || (query || '').trim();
+  if (!trimmed) {
     return {
       valid: false,
       reason: 'Please enter a monument or place name to search.',
       reasonHi: 'कृपया खोजने के लिए किसी स्मारक या स्थल का नाम दर्ज करें।'
     };
   }
-
-  const trimmed = query.trim();
   if (trimmed.length < 2) {
     return {
       valid: false,

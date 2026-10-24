@@ -43,13 +43,19 @@ export async function initDatabase() {
   }
 
   try {
+    const poolOptions = {
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+      enableKeepAlive: true,
+      keepAliveInitialDelay: 10000,
+    };
+
     const config = connectionUri
       ? {
           uri: connectionUri,
           ssl: { rejectUnauthorized: true },
-          waitForConnections: true,
-          connectionLimit: 10,
-          queueLimit: 0,
+          ...poolOptions,
         }
       : {
           host,
@@ -58,9 +64,7 @@ export async function initDatabase() {
           password,
           database,
           ssl: { rejectUnauthorized: true },
-          waitForConnections: true,
-          connectionLimit: 10,
-          queueLimit: 0,
+          ...poolOptions,
         };
 
     pool = mysql.createPool(config);
@@ -129,8 +133,19 @@ export function isDbConnected() {
  */
 export async function getAllSitesFromDb() {
   if (!isDbConnected()) return null;
-  const [rows] = await pool.query('SELECT data FROM heritage_sites ORDER BY name ASC');
-  return rows.map((r) => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data));
+  try {
+    const [rows] = await pool.query('SELECT data FROM heritage_sites ORDER BY name ASC');
+    return rows.map((r) => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data));
+  } catch (err) {
+    console.warn('[TiDB] Query failed in getAllSitesFromDb, retrying once:', err.message);
+    try {
+      const [retryRows] = await pool.query('SELECT data FROM heritage_sites ORDER BY name ASC');
+      return retryRows.map((r) => (typeof r.data === 'string' ? JSON.parse(r.data) : r.data));
+    } catch (retryErr) {
+      console.error('[TiDB] Retry failed in getAllSitesFromDb:', retryErr.message);
+      return null;
+    }
+  }
 }
 
 /**
@@ -138,9 +153,20 @@ export async function getAllSitesFromDb() {
  */
 export async function getSiteByIdFromDb(id) {
   if (!isDbConnected()) return null;
-  const [rows] = await pool.query('SELECT data FROM heritage_sites WHERE LOWER(id) = LOWER(?) LIMIT 1', [id]);
-  if (rows.length === 0) return null;
-  return typeof rows[0].data === 'string' ? JSON.parse(rows[0].data) : rows[0].data;
+  try {
+    const [rows] = await pool.query('SELECT data FROM heritage_sites WHERE LOWER(id) = LOWER(?) LIMIT 1', [id]);
+    if (rows.length === 0) return null;
+    return typeof rows[0].data === 'string' ? JSON.parse(rows[0].data) : rows[0].data;
+  } catch (err) {
+    console.warn(`[TiDB] Query failed for id "${id}", retrying once:`, err.message);
+    try {
+      const [retryRows] = await pool.query('SELECT data FROM heritage_sites WHERE LOWER(id) = LOWER(?) LIMIT 1', [id]);
+      if (retryRows.length === 0) return null;
+      return typeof retryRows[0].data === 'string' ? JSON.parse(retryRows[0].data) : retryRows[0].data;
+    } catch {
+      return null;
+    }
+  }
 }
 
 /**

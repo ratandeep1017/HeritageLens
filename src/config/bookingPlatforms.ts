@@ -7,7 +7,7 @@ export const DEFAULT_BOOKING_PLATFORMS: BookingPlatformConfig[] = [
     badgeColor: '#e41d36',
     textColor: '#ffffff',
     urlTemplate: 'https://www.makemytrip.com/hotels/hotel-listing/?searchText={query}',
-    enabled: true,
+    enabled: false,
   },
   {
     id: 'booking_com',
@@ -17,14 +17,7 @@ export const DEFAULT_BOOKING_PLATFORMS: BookingPlatformConfig[] = [
     urlTemplate: 'https://www.booking.com/searchresults.html?ss={query}',
     enabled: true,
   },
-  {
-    id: 'goibibo',
-    name: 'Goibibo',
-    badgeColor: '#f26722',
-    textColor: '#ffffff',
-    urlTemplate: 'https://www.goibibo.com/hotels/find-hotels-by-name?search={query}',
-    enabled: true,
-  },
+
   {
     id: 'oyo',
     name: 'OYO Rooms',
@@ -83,6 +76,10 @@ export interface BookingUrlParams {
   city?: string;
   lat?: number;
   lng?: number;
+  // Additional optional parameters for platforms that require them
+  checkin?: string;   // format YYYYMMDD
+  checkout?: string;  // format YYYYMMDD
+  cityCode?: string;  // platform‑specific city identifier
 }
 
 /**
@@ -125,6 +122,17 @@ export function buildBookingUrl(
 
   url = url.replace(/\{place\}/gi, encodeURIComponent(place || city));
   url = url.replace(/\{city\}/gi, encodeURIComponent(city));
+
+  // Additional placeholders for platforms like Goibibo
+  if (params.checkin) {
+    url = url.replace(/\{checkin\}/gi, encodeURIComponent(params.checkin));
+  }
+  if (params.checkout) {
+    url = url.replace(/\{checkout\}/gi, encodeURIComponent(params.checkout));
+  }
+  if (params.cityCode) {
+    url = url.replace(/\{cityCode\}/gi, encodeURIComponent(params.cityCode));
+  }
 
   if (params.lat !== undefined && params.lng !== undefined) {
     url = url.replace(/\{lat\}/gi, encodeURIComponent(String(params.lat)));

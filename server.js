@@ -21,6 +21,7 @@ import { identifyMonumentImage, generateSiteDossier, isGeminiAvailable, searchIm
 import { searchPlacePhotos, isGooglePlacesConfigured, getGooglePlacesApiKey } from './server/places.js';
 import { validateSearchQuery } from './server/validator.js';
 import { getCuratedHotels } from './server/curatedHotels.js';
+import { cleanSearchQuery, generateSiteDossierFromWikipedia } from './server/wikiDossier.js';
 
 // Admin active session token store (memory cache)
 const activeAdminTokens = new Set();
@@ -947,7 +948,7 @@ app.post('/api/identify', async (req, res) => {
   }
 });
 
-// 11. POST /api/generate-site (Server-side Gemini Site Dossier Generator)
+// 11. POST /api/generate-site (Server-side Gemini + Wikipedia Site Dossier Generator)
 app.post('/api/generate-site', async (req, res) => {
   try {
     const { query, lang } = req.body;
@@ -955,10 +956,12 @@ app.post('/api/generate-site', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Query parameter is required.' });
     }
 
+    const cleanQuery = cleanSearchQuery(query) || query.trim();
+
     // 0. Quick Validation Check: Reject illegal, non-place objects, fictional, or gibberish queries immediately
-    const validation = validateSearchQuery(query);
+    const validation = validateSearchQuery(cleanQuery);
     if (!validation.valid) {
-      console.log(`[Generate Site] Rejected invalid search query: "${query}" - ${validation.reason}`);
+      console.log(`[Generate Site] Rejected invalid search query: "${cleanQuery}" - ${validation.reason}`);
       return res.json({
         success: true,
         isRealHeritageSite: false,
@@ -971,9 +974,9 @@ app.post('/api/generate-site', async (req, res) => {
     let allSites = isDbConnected() ? await getAllSitesFromDb() : readSitesFromFile();
     if (!allSites || allSites.length === 0) allSites = readSitesFromFile();
 
-    const existing = findMatchingSiteInServer(query, allSites);
+    const existing = findMatchingSiteInServer(cleanQuery, allSites) || findMatchingSiteInServer(query, allSites);
     if (existing) {
-      console.log(`[Generate Site] Place '${query}' already listed as '${existing.name}' (${existing.id}). Returning existing record.`);
+      console.log(`[Generate Site] Place '${cleanQuery}' already listed as '${existing.name}' (${existing.id}). Returning existing record.`);
       return res.json({
         success: true,
         isRealHeritageSite: true,
@@ -982,21 +985,36 @@ app.post('/api/generate-site', async (req, res) => {
       });
     }
 
-    if (!isGeminiAvailable()) {
-      return res.status(503).json({
-        success: false,
-        error: 'Gemini AI is not configured on the server. Please set GEMINI_API_KEY in Render.',
-      });
+    let siteDossier = null;
+
+    // 2. Try Gemini AI if configured
+    if (isGeminiAvailable()) {
+      try {
+        siteDossier = await generateSiteDossier(cleanQuery, lang || 'en');
+      } catch (geminiErr) {
+        console.warn(`[Generate Site] Gemini dossier generation failed for "${cleanQuery}":`, geminiErr.message);
+      }
     }
 
-    const siteDossier = await generateSiteDossier(query, lang || 'en');
+    // 3. Resilient Fallback: If Gemini is unavailable, rate-limited, or failed, use Wikipedia Dossier Generator
+    if (!siteDossier || siteDossier.isRealHeritageSite === false) {
+      try {
+        console.log(`[Generate Site] Resolving heritage dossier for "${cleanQuery}" via Wikimedia/Wikipedia archives...`);
+        const wikiDossier = await generateSiteDossierFromWikipedia(cleanQuery, lang || 'en');
+        if (wikiDossier && wikiDossier.isRealHeritageSite) {
+          siteDossier = wikiDossier;
+        }
+      } catch (wikiErr) {
+        console.warn(`[Generate Site] Wikipedia fallback failed for "${cleanQuery}":`, wikiErr.message);
+      }
+    }
 
-    // If Gemini determined that this query is not a real physical heritage site/landmark
+    // If both Gemini and Wikipedia determined that this query is not a real physical heritage site
     if (!siteDossier || siteDossier.isRealHeritageSite === false) {
       return res.json({
         success: true,
         isRealHeritageSite: false,
-        rejectionReason: siteDossier?.rejectionReason || `Nothing found. "${query}" is not a recognized monument or heritage site.`,
+        rejectionReason: siteDossier?.rejectionReason || `Nothing found. "${cleanQuery}" is not a recognized monument or heritage site.`,
         site: null,
       });
     }

@@ -48,6 +48,7 @@ import { ApiKeyPromptModal } from '../components/ApiKeyPromptModal';
 import { VisualImagePickerModal } from '../components/VisualImagePickerModal';
 import { handleMonumentImageError } from '../utils/imageFallback';
 import { findExistingHeritageSite } from '../utils/monumentMatcher';
+import { cleanSearchQuery } from '../utils/searchValidator';
 import { HowToUseDossierGuide } from '../components/HowToUseDossierGuide';
 
 interface HomePageProps {
@@ -191,11 +192,13 @@ export const HomePage: React.FC<HomePageProps> = ({ currentLang }) => {
   };
 
   const handleAiMonumentSearch = async (queryToSearch?: string) => {
-    const targetQuery = (queryToSearch || aiSearchQuery).trim();
-    if (!targetQuery) return;
+    const rawTarget = (queryToSearch || aiSearchQuery).trim();
+    if (!rawTarget) return;
+
+    const targetQuery = cleanSearchQuery(rawTarget) || rawTarget;
 
     // 1. Prevent duplicate AI calls & duplicate catalog entries if place is already listed!
-    const existing = findExistingHeritageSite(targetQuery, heritageSites);
+    const existing = findExistingHeritageSite(targetQuery, heritageSites) || findExistingHeritageSite(rawTarget, heritageSites);
     if (existing) {
       const existingResult: GenerateSiteResponse = {
         success: true,
