@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useRef } from 'react';
+import { motion, useInView } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import {
   Search,
-  Camera,
   Sparkles,
   Navigation,
   Building2,
@@ -13,16 +12,14 @@ import {
   Volume2,
   Landmark,
   Utensils,
-  CheckCircle2,
   ArrowRight,
-  ExternalLink,
-  ShieldCheck,
+  Eye,
   Compass,
   Layers,
-  MapPin,
   ChevronRight,
-  Eye,
-  ShoppingBag
+  Zap,
+  MapPin,
+  Globe,
 } from 'lucide-react';
 
 interface HowToUseDossierGuideProps {
@@ -31,385 +28,586 @@ interface HowToUseDossierGuideProps {
 
 export const HowToUseDossierGuide: React.FC<HowToUseDossierGuideProps> = ({ currentLang }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'intel' | 'transit' | 'culture'>('all');
+  const [hoveredFeature, setHoveredFeature] = useState<string | null>(null);
 
-  // 1. Three Simple Steps to Use the Platform
+  const sectionRef = useRef<HTMLDivElement>(null);
+  const isInView = useInView(sectionRef, { once: true, margin: '-80px' });
+
+  const stepsRef = useRef<HTMLDivElement>(null);
+  const stepsInView = useInView(stepsRef, { once: true, margin: '-60px' });
+
+  const gridRef = useRef<HTMLDivElement>(null);
+  const gridInView = useInView(gridRef, { once: true, margin: '-40px' });
+
+  // 1. Three Simple Steps
   const workflowSteps = [
     {
       step: '01',
-      titleEn: 'Discover by Search or Camera',
+      titleEn: 'Search or Snap',
       titleHi: 'खोजें या तस्वीर लें',
-      descEn: 'Type any monument or city name in the AI search bar, or snap a live photo of any historic facade with the Vision Studio.',
-      descHi: 'एआई सर्च बार में किसी भी स्मारक का नाम लिखें, या विज़न स्टूडियो से किसी भी ऐतिहासिक इमारत की तस्वीर खींचें।',
+      descEn: 'Type any monument name or snap a photo with AI Vision Studio.',
+      descHi: 'किसी स्मारक का नाम लिखें या कैमरे से तस्वीर लें।',
       icon: Search,
-      accentBg: 'bg-[#C05E42]/10',
-      accentBorder: 'border-[#C05E42]/20',
-      accentColor: 'text-[#C05E42]',
-      badgeEn: 'Search or Snap',
-      badgeHi: 'सर्च या कैमरा'
+      gradient: 'from-[#C05E42] to-[#E8845C]',
+      glowColor: 'rgba(192,94,66,0.15)',
     },
     {
       step: '02',
-      titleEn: 'Instant Multi-Modal Verification',
-      titleHi: 'त्वरित एआई प्रमाणीकरण',
-      descEn: 'Our neural vision algorithms match architectural motifs against ASI & UNESCO databases and extract real-time GPS coordinates.',
-      descHi: 'एआई मेहराबों, गुंबदों और नक्काशी का मिलान एएसआई व यूनेस्को अभिलेखों से कर सटीक भौगोलिक निर्देशांक प्राप्त करता है।',
+      titleEn: 'AI Verifies',
+      titleHi: 'AI सत्यापन',
+      descEn: 'Neural algorithms match architecture against ASI & UNESCO databases.',
+      descHi: 'AI स्थापत्य का मिलान ASI व UNESCO से करता है।',
       icon: Sparkles,
-      accentBg: 'bg-[#D4AF37]/15',
-      accentBorder: 'border-[#D4AF37]/30',
-      accentColor: 'text-[#A07C1C]',
-      badgeEn: 'AI Neural Matching',
-      badgeHi: 'एआई न्यूरल मिलान'
+      gradient: 'from-[#D4AF37] to-[#F0D060]',
+      glowColor: 'rgba(212,175,55,0.15)',
     },
     {
       step: '03',
-      titleEn: 'Unlock Your Complete Dossier',
-      titleHi: 'संपूर्ण यात्रा गाइड अनलॉक करें',
-      descEn: 'Receive a full traveler dossier with live maps, metro transit, vetted stays with 1-click booking, audio guide, and entry fees.',
-      descHi: 'नक्शे, निकटतम मेट्रो, 1-क्लिक होटल बुकिंग, द्विभाषी ऑडियो गाइड और टिकट दरों से युक्त संपूर्ण विवरणिका प्राप्त करें।',
+      titleEn: 'Get Full Dossier',
+      titleHi: 'पूरी जानकारी पाएं',
+      descEn: 'Unlock maps, hotels, audio guide, metro info & ticket prices instantly.',
+      descHi: 'नक्शे, होटल, ऑडियो गाइड, मेट्रो व टिकट जानकारी तुरंत पाएं।',
       icon: Compass,
-      accentBg: 'bg-[#2C4A3E]/10',
-      accentBorder: 'border-[#2C4A3E]/20',
-      accentColor: 'text-[#2C4A3E]',
-      badgeEn: '360° Intelligence',
-      badgeHi: '360° जानकारी'
-    }
+      gradient: 'from-[#2C4A3E] to-[#4A7A6A]',
+      glowColor: 'rgba(44,74,62,0.15)',
+    },
   ];
 
-  // 2. Comprehensive Intelligence Features User Unlocks
+  // 2. Feature cards
   const dossierFeatures = [
     {
       id: 'maps',
       category: 'transit',
       icon: Navigation,
-      iconColor: 'text-[#C05E42]',
-      iconBg: 'bg-[#C05E42]/10',
-      borderHover: 'hover:border-[#C05E42]',
-      titleEn: 'Interactive Maps & 3D Satellite',
-      titleHi: 'इंटरैक्टिव मैप्स एवं गूगल 3D',
-      badgeEn: 'GPS Coordinates',
-      badgeHi: 'सटीक जीपीएस',
-      descEn: 'Exact coordinates on interactive Leaflet maps, 1-click turn-by-turn Google Maps directions, and 3D satellite view without API keys.',
-      descHi: 'इंटरैक्टिव लीफ़लेट मानचित्र, 1-क्लिक गूगल मैप्स दिशा-निर्देश, तथा उपग्रह 3D व्यू की सुविधा।'
+      gradient: 'from-[#C05E42] to-[#E88A60]',
+      titleEn: 'Live Maps & Satellite',
+      titleHi: 'लाइव मैप व सैटेलाइट',
+      tagEn: 'GPS',
+      tagHi: 'GPS',
+      descEn: 'Interactive maps with 1-click Google directions & 3D satellite view.',
+      descHi: 'इंटरैक्टिव मैप, गूगल दिशा-निर्देश व 3D सैटेलाइट व्यू।',
     },
     {
       id: 'hotels',
       category: 'transit',
       icon: Building2,
-      iconColor: 'text-[#2C4A3E]',
-      iconBg: 'bg-[#2C4A3E]/10',
-      borderHover: 'hover:border-[#2C4A3E]',
-      titleEn: 'Nearby Hotels & 1-Click Booking',
-      titleHi: 'समीपवर्ती होटल व 1-क्लिक बुकिंग',
-      badgeEn: 'MakeMyTrip • Booking.com • OYO',
-      badgeHi: 'प्रमुख बुकिंग साइट्स',
-      descEn: 'Curated pilgrim dharamshalas, sarais, and heritage stays with estimated tariffs and pre-filled 1-click search buttons for MMT, Booking.com, Goibibo, OYO & Google Hotels.',
-      descHi: 'किफायती धर्मशालाएं, आश्रम व हेरिटेज होटल, अनुमानित किराया, तथा मेकमाईट्रिप, बुकिंग.कॉम, ओयो व गूगल होटल्स के सीधे लिंक।'
+      gradient: 'from-[#2C4A3E] to-[#4B8A72]',
+      titleEn: 'Hotels & Booking',
+      titleHi: 'होटल व बुकिंग',
+      tagEn: 'Booking.com · OYO',
+      tagHi: 'बुकिंग साइट्स',
+      descEn: 'Dharamshalas, heritage stays with 1-click booking on partner sites.',
+      descHi: 'धर्मशालाएं, हेरिटेज होटल व पार्टनर साइट पर 1-क्लिक बुकिंग।',
     },
     {
       id: 'metro',
       category: 'transit',
       icon: Train,
-      iconColor: 'text-blue-700',
-      iconBg: 'bg-blue-50',
-      borderHover: 'hover:border-blue-400',
-      titleEn: 'Nearest Metro Stations & Lines',
-      titleHi: 'निकटतम मेट्रो व रेलवे स्टेशन',
-      badgeEn: 'Transit Hubs',
-      badgeHi: 'मेट्रो कनेक्टिविटी',
-      descEn: 'Exact nearest metro line (Violet, Yellow, Blue, etc.), station name, exit gate recommendations, and walking/auto distance to the entry gate.',
-      descHi: 'निकटतम मेट्रो लाइन, स्टेशन का नाम, गेट संख्या, और स्मारक के मुख्य द्वार तक की दूरी व आवागमन के साधन।'
+      gradient: 'from-[#2563EB] to-[#60A5FA]',
+      titleEn: 'Metro & Transit',
+      titleHi: 'मेट्रो व ट्रांजिट',
+      tagEn: 'Routes',
+      tagHi: 'मार्ग',
+      descEn: 'Nearest metro line, station, exit gate & walking distance.',
+      descHi: 'निकटतम मेट्रो लाइन, स्टेशन, गेट व पैदल दूरी।',
     },
     {
       id: 'timings',
       category: 'intel',
       icon: Clock,
-      iconColor: 'text-amber-700',
-      iconBg: 'bg-amber-50',
-      borderHover: 'hover:border-amber-400',
-      titleEn: 'Official Timings & Open Days',
-      titleHi: 'आधिकारिक समय एवं खुलने के दिन',
-      badgeEn: 'Weekly Schedule',
-      badgeHi: 'समय सारणी',
-      descEn: 'Official opening and closing hours, weekly closed days (e.g. Mondays), ideal visiting months, and seasonal crowd alerts.',
-      descHi: 'स्मारक खुलने व बंद होने का समय, साप्ताहिक अवकाश के दिन (जैसे सोमवार), और मौसम अनुसार भ्रमण का सर्वोत्तम समय।'
+      gradient: 'from-[#B45309] to-[#F59E0B]',
+      titleEn: 'Timings & Days',
+      titleHi: 'समय व दिन',
+      tagEn: 'Schedule',
+      tagHi: 'समय सारणी',
+      descEn: 'Opening hours, closed days, best visiting months & crowd alerts.',
+      descHi: 'खुलने का समय, अवकाश, सर्वोत्तम महीने व भीड़ अलर्ट।',
     },
     {
       id: 'tickets',
       category: 'intel',
       icon: Ticket,
-      iconColor: 'text-rose-700',
-      iconBg: 'bg-rose-50',
-      borderHover: 'hover:border-rose-400',
-      titleEn: 'Entry Fees & Ticket Breakdown',
-      titleHi: 'टिकट दरें एवं प्रवेश शुल्क',
-      badgeEn: 'ASI Rates',
-      badgeHi: 'प्रवेश शुल्क',
-      descEn: 'Current entry fee rates for Indian citizens, SAARC visitors, and Foreign tourists; sound & light show charges; and tripod/camera rules.',
-      descHi: 'भारतीय, सार्क एवं विदेशी पर्यटकों के लिए प्रवेश शुल्क, ध्वनि एवं प्रकाश (साउंड एंड लाइट) शो की दरें और कैमरा नियम।'
+      gradient: 'from-[#BE123C] to-[#FB7185]',
+      titleEn: 'Entry Fees',
+      titleHi: 'प्रवेश शुल्क',
+      tagEn: 'ASI Rates',
+      tagHi: 'ASI दरें',
+      descEn: 'Indian, SAARC & foreign tourist fees, light show & camera charges.',
+      descHi: 'भारतीय, SAARC व विदेशी शुल्क, लाइट शो व कैमरा शुल्क।',
     },
     {
       id: 'audio',
       category: 'culture',
       icon: Volume2,
-      iconColor: 'text-[#D4AF37]',
-      iconBg: 'bg-[#D4AF37]/15',
-      borderHover: 'hover:border-[#D4AF37]',
-      titleEn: 'Dual-Language Audio Narration',
-      titleHi: 'द्विभाषी ऑडियो गाइड',
-      badgeEn: 'English & हिन्दी Speech',
-      badgeHi: 'आवाज़ गाइड',
-      descEn: 'Hands-free fluent voice narration in English and Hindi. Listen to stories of emperors, queens, and architects while strolling through historic grounds.',
-      descHi: 'अंग्रेजी और हिन्दी में सुगम ऑडियो कथन। स्मारक में घूमते हुए राजा-रानियों, शिल्पकारों और इतिहास की रोचक गाथाएं सुनें।'
+      gradient: 'from-[#A07C1C] to-[#D4AF37]',
+      titleEn: 'Audio Guide',
+      titleHi: 'ऑडियो गाइड',
+      tagEn: 'EN & हिन्दी',
+      tagHi: 'EN & हिन्दी',
+      descEn: 'Hands-free bilingual narration — walk & listen to history come alive.',
+      descHi: 'अंग्रेजी-हिन्दी ऑडियो कथन — चलते-चलते इतिहास सुनें।',
     },
     {
       id: 'history',
       category: 'intel',
       icon: Landmark,
-      iconColor: 'text-[#2C4A3E]',
-      iconBg: 'bg-[#2C4A3E]/10',
-      borderHover: 'hover:border-[#2C4A3E]',
-      titleEn: 'Deep Architecture & Timeline',
-      titleHi: 'गहन स्थापत्य कला व कालक्रम',
-      badgeEn: 'ASI & UNESCO Records',
-      badgeHi: 'प्रमाणित इतिहास',
-      descEn: 'Exact built year, patron emperor, architectural style breakdown (Mughal, Rajput, Dravidian, etc.), and oral folklore legends clearly separated from facts.',
-      descHi: 'निर्माण वर्ष, मुख्य वास्तुकार व संरक्षक, स्थापत्य शैली (मुगल, राजपूत, द्रविड़), और जनश्रुतियों/लोककथाओं का स्पष्ट विवरण।'
+      gradient: 'from-[#2C4A3E] to-[#5B9E82]',
+      titleEn: 'Architecture & History',
+      titleHi: 'स्थापत्य व इतिहास',
+      tagEn: 'UNESCO',
+      tagHi: 'UNESCO',
+      descEn: 'Built year, patron, architectural style, folklore separated from facts.',
+      descHi: 'निर्माण वर्ष, संरक्षक, शैली, लोककथाएं तथ्यों से अलग।',
     },
     {
       id: 'food',
       category: 'culture',
       icon: Utensils,
-      iconColor: 'text-orange-700',
-      iconBg: 'bg-orange-50',
-      borderHover: 'hover:border-orange-400',
-      titleEn: 'Nearby Food & Artisan Bazaars',
-      titleHi: 'स्थानीय खानपान एवं पारंपरिक बाज़ार',
-      badgeEn: 'Local Culture',
-      badgeHi: 'बाज़ार व स्ट्रीट फ़ूड',
-      descEn: 'Curated historic street food specialties, iconic local sweetshops, and centuries-old artisan handicraft markets situated around the monument.',
-      descHi: 'स्मारक के पास के प्रसिद्ध स्ट्रीट फूड, ऐतिहासिक मिष्ठान्न भंडार और पारंपरिक दस्तकारी एवं हस्तशिल्प बाज़ारों की जानकारी।'
-    }
+      gradient: 'from-[#C2410C] to-[#FB923C]',
+      titleEn: 'Food & Bazaars',
+      titleHi: 'खानपान व बाज़ार',
+      tagEn: 'Local',
+      tagHi: 'स्थानीय',
+      descEn: 'Historic street food, iconic sweetshops & artisan handicraft markets.',
+      descHi: 'प्रसिद्ध स्ट्रीट फूड, मिठाई दुकानें व हस्तशिल्प बाज़ार।',
+    },
   ];
 
-  const filteredFeatures = activeTab === 'all' 
-    ? dossierFeatures 
-    : dossierFeatures.filter(f => f.category === activeTab);
+  const filteredFeatures =
+    activeTab === 'all' ? dossierFeatures : dossierFeatures.filter((f) => f.category === activeTab);
+
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.12, delayChildren: 0.1 },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 30, scale: 0.95 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      scale: 1,
+      transition: { type: 'spring', stiffness: 260, damping: 20 },
+    },
+  };
+
+  const featureCardVariants = {
+    hidden: { opacity: 0, y: 24 },
+    visible: (i: number) => ({
+      opacity: 1,
+      y: 0,
+      transition: { delay: i * 0.07, type: 'spring', stiffness: 200, damping: 18 },
+    }),
+  };
 
   return (
-    <section 
+    <section
+      ref={sectionRef}
       id="how-it-works-guide"
-      className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-8 sm:py-12 flex flex-col gap-10"
+      className="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 sm:py-16 flex flex-col gap-12 overflow-hidden"
     >
-      {/* ========================================================================= */}
-      {/* 1. SECTION HEADER                                                         */}
-      {/* ========================================================================= */}
-      <div className="text-center max-w-3xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#2C4A3E]/10 border border-[#2C4A3E]/20 text-[#2C4A3E] text-xs font-bold mb-3 shadow-2xs">
-          <Sparkles className="w-3.5 h-3.5 text-[#D4AF37]" />
-          <span>
-            {currentLang === 'en' 
-              ? 'Complete Traveler & Heritage Intelligence Guide' 
-              : 'संपूर्ण यात्रा एवं धरोहर गाइड'}
-          </span>
-        </div>
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* SECTION HEADER — animated entrance                                   */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      <motion.div
+        initial={{ opacity: 0, y: 30 }}
+        animate={isInView ? { opacity: 1, y: 0 } : {}}
+        transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+        className="text-center max-w-2xl mx-auto"
+      >
+        <motion.div
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={isInView ? { opacity: 1, scale: 1 } : {}}
+          transition={{ delay: 0.2, duration: 0.5 }}
+          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-[#2C4A3E]/10 to-[#D4AF37]/10 border border-[#2C4A3E]/15 text-[#2C4A3E] text-xs font-bold mb-4 shadow-sm backdrop-blur-sm"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-[#D4AF37] animate-pulse" />
+          <span>{currentLang === 'en' ? 'Heritage Intelligence Guide' : 'धरोहर इंटेलिजेंस गाइड'}</span>
+        </motion.div>
 
-        <h2 className="text-3xl sm:text-4xl font-bold font-serif-heritage text-[#1A1A1A] leading-tight mb-3">
+        <h2 className="text-3xl sm:text-4xl lg:text-[2.75rem] font-bold font-serif-heritage text-[#1A1A1A] leading-tight mb-3">
           {currentLang === 'en' ? (
             <>
-              How to Use HeritageLens &{' '}
-              <span className="text-[#C05E42] italic font-semibold">What You Unlock</span>
+              How It Works &{' '}
+              <span className="relative inline-block">
+                <span className="relative z-10 bg-gradient-to-r from-[#C05E42] to-[#D4AF37] bg-clip-text text-transparent">
+                  What You Unlock
+                </span>
+                <motion.span
+                  initial={{ scaleX: 0 }}
+                  animate={isInView ? { scaleX: 1 } : {}}
+                  transition={{ delay: 0.6, duration: 0.5 }}
+                  className="absolute -bottom-1 left-0 right-0 h-[3px] bg-gradient-to-r from-[#C05E42] to-[#D4AF37] rounded-full origin-left"
+                />
+              </span>
             </>
           ) : (
             <>
-              वेबसाइट का उपयोग कैसे करें एवं{' '}
-              <span className="text-[#C05E42] italic font-semibold">आपको क्या जानकारी मिलेगी</span>
+              कैसे काम करता है &{' '}
+              <span className="bg-gradient-to-r from-[#C05E42] to-[#D4AF37] bg-clip-text text-transparent">
+                आपको क्या मिलता है
+              </span>
             </>
           )}
         </h2>
 
-        <p className="text-xs sm:text-sm text-[#5C544E] leading-relaxed">
+        <p className="text-sm text-[#5C544E] leading-relaxed max-w-xl mx-auto">
           {currentLang === 'en'
-            ? 'From instant AI visual recognition to verified ASI entry fees, transit directions, and hotel booking links—here is everything waiting for you inside each monument dossier.'
-            : 'एआई विज़न पहचान से लेकर एएसआई प्रमाणित टिकट, निकटतम मेट्रो, होटल बुकिंग लिंक और ऑडियो गाइड तक—जानें हर स्मारक खोज पर आपको क्या जानकारी प्राप्त होगी।'}
+            ? 'Three steps to unlock 8 intelligence layers for every monument — maps, hotels, audio, metro routes & more.'
+            : 'हर स्मारक के लिए 8 जानकारी — नक्शे, होटल, ऑडियो, मेट्रो व अन्य — पाने के 3 कदम।'}
         </p>
-      </div>
+      </motion.div>
 
-      {/* ========================================================================= */}
-      {/* 2. THREE-STEP WORKFLOW: HOW TO USE THIS WEBSITE                           */}
-      {/* ========================================================================= */}
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center justify-between border-b border-[#E8E2D9] pb-3">
-          <span className="text-xs uppercase font-extrabold tracking-widest text-[#8C8276] flex items-center gap-2">
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* THREE-STEP WORKFLOW — animated cards with gradient accents             */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      <div ref={stepsRef}>
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={stepsInView ? { opacity: 1, x: 0 } : {}}
+          transition={{ duration: 0.4 }}
+          className="flex items-center gap-3 mb-5"
+        >
+          <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#F3EEE7] border border-[#E8E2D9]">
             <Layers className="w-4 h-4 text-[#C05E42]" />
-            <span>{currentLang === 'en' ? 'Method: 3 Simple Steps' : 'प्रक्रिया: 3 सरल चरण'}</span>
+            <span className="text-xs uppercase font-extrabold tracking-widest text-[#8C8276]">
+              {currentLang === 'en' ? '3 Simple Steps' : '3 सरल चरण'}
+            </span>
+          </div>
+          <div className="flex-1 h-px bg-gradient-to-r from-[#E8E2D9] to-transparent" />
+          <span className="text-[11px] font-semibold text-[#8C8276] hidden sm:inline">
+            {currentLang === 'en' ? 'Free • No signup' : 'निःशुल्क • बिना पंजीकरण'}
           </span>
-          <span className="text-[11px] font-semibold text-[#8C8276]">
-            {currentLang === 'en' ? 'Zero registration needed • 100% Free' : 'बिना किसी पंजीकरण के • पूर्णतः निःशुल्क'}
-          </span>
-        </div>
+        </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate={stepsInView ? 'visible' : 'hidden'}
+          className="grid grid-cols-1 md:grid-cols-3 gap-5"
+        >
           {workflowSteps.map((ws, idx) => {
             const Icon = ws.icon;
             return (
               <motion.div
                 key={idx}
-                whileHover={{ y: -3 }}
-                transition={{ duration: 0.2 }}
-                className="bg-[#FDFBF7] border border-[#E8E2D9] hover:border-[#D4AF37] rounded-3xl p-6 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden"
+                variants={itemVariants}
+                whileHover={{ y: -6, scale: 1.02 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+                className="group relative rounded-3xl overflow-hidden cursor-default"
               >
-                {/* Step watermarked number */}
-                <span className="absolute top-4 right-5 text-4xl font-extrabold text-[#E8E2D9]/70 select-none font-serif-heritage">
-                  {ws.step}
-                </span>
-
-                <div>
-                  <div className={`w-11 h-11 rounded-2xl ${ws.accentBg} border ${ws.accentBorder} ${ws.accentColor} flex items-center justify-center mb-4 shadow-2xs`}>
-                    <Icon className="w-5 h-5" />
-                  </div>
-
-                  <span className={`inline-block px-2.5 py-0.5 rounded-full ${ws.accentBg} ${ws.accentColor} text-[10px] font-extrabold uppercase tracking-wider mb-2`}>
-                    {currentLang === 'en' ? ws.badgeEn : ws.badgeHi}
-                  </span>
-
-                  <h3 className="text-lg font-bold font-serif-heritage text-[#1A1A1A] mb-2 leading-snug">
-                    {currentLang === 'en' ? ws.titleEn : ws.titleHi}
-                  </h3>
-
-                  <p className="text-xs text-[#5C544E] leading-relaxed">
-                    {currentLang === 'en' ? ws.descEn : ws.descHi}
-                  </p>
+                {/* Animated gradient border */}
+                <div className="absolute inset-0 rounded-3xl bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity duration-500 p-[1.5px]"
+                  style={{
+                    backgroundImage: `linear-gradient(135deg, var(--tw-gradient-stops))`,
+                  }}
+                >
+                  <div className={`absolute inset-0 rounded-3xl bg-gradient-to-br ${ws.gradient} opacity-20 group-hover:opacity-30 transition-opacity duration-300`} />
                 </div>
 
-                <div className="pt-4 mt-4 border-t border-[#E8E2D9]/70 flex items-center justify-between text-[11px] font-bold text-[#8C8276]">
-                  <span>{currentLang === 'en' ? `Step ${idx + 1} of 3` : `चरण ${idx + 1} / 3`}</span>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-[#2C4A3E]" />
+                <div
+                  className="relative bg-white/90 backdrop-blur-sm border border-[#E8E2D9] group-hover:border-transparent rounded-3xl p-6 h-full flex flex-col gap-4 transition-all duration-300"
+                  style={{
+                    boxShadow: `0 2px 8px rgba(0,0,0,0.03), 0 0 0 0 ${ws.glowColor}`,
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.boxShadow = `0 12px 40px ${ws.glowColor}, 0 4px 12px rgba(0,0,0,0.06)`;
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.boxShadow = `0 2px 8px rgba(0,0,0,0.03)`;
+                  }}
+                >
+                  {/* Step number — large watermark */}
+                  <span className="absolute top-3 right-4 text-[3.5rem] font-black text-[#E8E2D9]/50 group-hover:text-[#E8E2D9]/80 select-none font-serif-heritage transition-colors duration-300 leading-none">
+                    {ws.step}
+                  </span>
+
+                  {/* Icon with animated gradient background */}
+                  <motion.div
+                    whileHover={{ rotate: [0, -8, 8, 0] }}
+                    transition={{ duration: 0.4 }}
+                    className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${ws.gradient} flex items-center justify-center shadow-lg`}
+                  >
+                    <Icon className="w-5 h-5 text-white" />
+                  </motion.div>
+
+                  <div>
+                    <h3 className="text-lg font-bold font-serif-heritage text-[#1A1A1A] mb-1.5 leading-tight">
+                      {currentLang === 'en' ? ws.titleEn : ws.titleHi}
+                    </h3>
+                    <p className="text-[13px] text-[#5C544E] leading-relaxed">
+                      {currentLang === 'en' ? ws.descEn : ws.descHi}
+                    </p>
+                  </div>
+
+                  {/* Animated progress line */}
+                  <div className="mt-auto pt-3">
+                    <div className="flex items-center gap-2">
+                      {[0, 1, 2].map((dot) => (
+                        <motion.div
+                          key={dot}
+                          initial={false}
+                          animate={{
+                            scale: dot <= idx ? 1 : 0.7,
+                            opacity: dot <= idx ? 1 : 0.3,
+                          }}
+                          className={`h-1.5 rounded-full transition-all duration-300 ${
+                            dot <= idx
+                              ? `bg-gradient-to-r ${ws.gradient} flex-1`
+                              : 'bg-[#E8E2D9] flex-1'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-[10px] font-bold text-[#8C8276] mt-1.5 block">
+                      {currentLang === 'en' ? `Step ${idx + 1} of 3` : `चरण ${idx + 1} / 3`}
+                    </span>
+                  </div>
                 </div>
               </motion.div>
             );
           })}
+        </motion.div>
+
+        {/* Connector arrows between steps (desktop) */}
+        <div className="hidden md:flex justify-around px-16 -mt-3 pointer-events-none">
+          {[0, 1].map((i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, x: -10 }}
+              animate={stepsInView ? { opacity: 0.4, x: 0 } : {}}
+              transition={{ delay: 0.5 + i * 0.15 }}
+            >
+              <ChevronRight className="w-5 h-5 text-[#C05E42]" />
+            </motion.div>
+          ))}
         </div>
       </div>
 
-      {/* ========================================================================= */}
-      {/* 3. WHAT YOU RECEIVE: FULL DOSSIER INTEL SHOWCASE                          */}
-      {/* ========================================================================= */}
-      <div className="bg-[#FDFBF7] border border-[#E8E2D9] rounded-3xl sm:rounded-4xl p-6 sm:p-9 shadow-sm flex flex-col gap-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#E8E2D9] pb-4">
-          <div>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#C05E42]/10 text-[#C05E42] text-xs font-bold mb-1">
-              <ShieldCheck className="w-3.5 h-3.5" />
-              <span>{currentLang === 'en' ? 'The Complete Information Package' : 'स्मारक खोज पर प्राप्त होने वाली जानकारी'}</span>
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      {/* WHAT YOU RECEIVE — 8-feature glassmorphic grid                        */}
+      {/* ═══════════════════════════════════════════════════════════════════════ */}
+      <div
+        ref={gridRef}
+        className="relative rounded-[2rem] overflow-hidden"
+      >
+        {/* Subtle background pattern */}
+        <div className="absolute inset-0 bg-gradient-to-br from-[#FDFBF7] via-[#F8F4EE] to-[#F3EEE7] -z-10" />
+        <div
+          className="absolute inset-0 opacity-[0.02] -z-10"
+          style={{
+            backgroundImage:
+              'radial-gradient(circle at 1px 1px, #2C4A3E 1px, transparent 0)',
+            backgroundSize: '24px 24px',
+          }}
+        />
+
+        <div className="p-6 sm:p-8 flex flex-col gap-6 border border-[#E8E2D9] rounded-[2rem]">
+          {/* Header + Filter Pills */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={gridInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ duration: 0.5 }}
+            className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+          >
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <motion.div
+                  animate={gridInView ? { rotate: [0, 360] } : {}}
+                  transition={{ delay: 0.3, duration: 0.8, ease: 'easeOut' }}
+                >
+                  <Zap className="w-4.5 h-4.5 text-[#D4AF37]" />
+                </motion.div>
+                <span className="text-xs font-bold text-[#C05E42] uppercase tracking-wider">
+                  {currentLang === 'en' ? '8 Intelligence Layers' : '8 जानकारी परतें'}
+                </span>
+              </div>
+              <h3 className="text-xl sm:text-2xl font-bold font-serif-heritage text-[#1A1A1A]">
+                {currentLang === 'en'
+                  ? 'What Every Monument Profile Contains'
+                  : 'हर स्मारक प्रोफ़ाइल में क्या मिलता है'}
+              </h3>
             </div>
-            <h3 className="text-xl sm:text-2xl font-bold font-serif-heritage text-[#1A1A1A]">
-              {currentLang === 'en' 
-                ? 'What You Receive When You Click or Search a Place' 
-                : 'स्मारक पर क्लिक या सर्च करने पर क्या जानकारी मिलती है'}
-            </h3>
-            <p className="text-xs text-[#5C544E] mt-0.5">
-              {currentLang === 'en'
-                ? 'Every monument profile is thoroughly researched across 8 vital domains for travelers and heritage lovers:'
-                : 'प्रत्येक स्मारक विवरणिका में यात्रियों एवं शोधकर्ताओं के लिए 8 प्रमुख अनुभाग शामिल होते हैं:'}
-            </p>
-          </div>
 
-          {/* Filter Pills */}
-          <div className="flex items-center gap-1.5 self-start sm:self-auto shrink-0 bg-white p-1 rounded-2xl border border-[#E8E2D9]">
-            {[
-              { id: 'all', labelEn: 'All 8 Features', labelHi: 'सभी 8 सुविधाएं' },
-              { id: 'transit', labelEn: 'Maps & Stays', labelHi: 'नक्शे व आवास' },
-              { id: 'intel', labelEn: 'Tickets & Hours', labelHi: 'टिकट व समय' },
-              { id: 'culture', labelEn: 'Audio & Culture', labelHi: 'ऑडियो व खानपान' },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveTab(tab.id as any)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  activeTab === tab.id
-                    ? 'bg-[#2C4A3E] text-white shadow-2xs'
-                    : 'text-[#5C544E] hover:text-[#1A1A1A] hover:bg-[#F3EEE7]'
-                }`}
-              >
-                {currentLang === 'en' ? tab.labelEn : tab.labelHi}
-              </button>
-            ))}
-          </div>
-        </div>
+            {/* Animated Filter Pills */}
+            <div className="flex items-center gap-1 self-start sm:self-auto shrink-0 bg-white/80 backdrop-blur-sm p-1 rounded-2xl border border-[#E8E2D9] shadow-sm">
+              {[
+                { id: 'all', labelEn: 'All', labelHi: 'सभी', icon: Globe },
+                { id: 'transit', labelEn: 'Maps & Stays', labelHi: 'नक्शे', icon: MapPin },
+                { id: 'intel', labelEn: 'Info & Fees', labelHi: 'जानकारी', icon: Ticket },
+                { id: 'culture', labelEn: 'Audio & Food', labelHi: 'ऑडियो', icon: Volume2 },
+              ].map((tab) => {
+                const TabIcon = tab.icon;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`relative px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-300 cursor-pointer flex items-center gap-1.5 ${
+                      activeTab === tab.id
+                        ? 'text-white shadow-md'
+                        : 'text-[#5C544E] hover:text-[#1A1A1A] hover:bg-[#F3EEE7]'
+                    }`}
+                  >
+                    {activeTab === tab.id && (
+                      <motion.div
+                        layoutId="activeTabBg"
+                        className="absolute inset-0 bg-gradient-to-r from-[#2C4A3E] to-[#4A7A6A] rounded-xl"
+                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    <TabIcon className="w-3 h-3 relative z-10" />
+                    <span className="relative z-10">{currentLang === 'en' ? tab.labelEn : tab.labelHi}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </motion.div>
 
-        {/* 8-Card Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {filteredFeatures.map((feat) => {
-            const Icon = feat.icon;
-            return (
-              <motion.div
-                key={feat.id}
-                whileHover={{ y: -3 }}
-                transition={{ duration: 0.15 }}
-                className={`p-5 rounded-2xl bg-white border border-[#E8E2D9] ${feat.borderHover} hover:shadow-sm transition-all flex flex-col justify-between gap-3`}
-              >
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <div className={`w-9 h-9 rounded-xl ${feat.iconBg} flex items-center justify-center shrink-0`}>
-                      <Icon className={`w-4 h-4 ${feat.iconColor}`} />
-                    </div>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F3EEE7] text-[#5C544E] border border-[#E8E2D9]">
-                      {currentLang === 'en' ? feat.badgeEn : feat.badgeHi}
-                    </span>
+          {/* 8-Card Grid — Animated stagger */}
+          <motion.div
+            key={activeTab}
+            initial="hidden"
+            animate="visible"
+            variants={{
+              hidden: { opacity: 0 },
+              visible: { opacity: 1, transition: { staggerChildren: 0.06 } },
+            }}
+            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+          >
+            {filteredFeatures.map((feat, idx) => {
+              const Icon = feat.icon;
+              const isHovered = hoveredFeature === feat.id;
+
+              return (
+                <motion.div
+                  key={feat.id}
+                  custom={idx}
+                  variants={featureCardVariants}
+                  whileHover={{ y: -5 }}
+                  onHoverStart={() => setHoveredFeature(feat.id)}
+                  onHoverEnd={() => setHoveredFeature(null)}
+                  className="group relative rounded-2xl cursor-default overflow-hidden"
+                >
+                  {/* Hover glow border */}
+                  <div
+                    className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${feat.gradient} transition-opacity duration-300 ${
+                      isHovered ? 'opacity-100' : 'opacity-0'
+                    }`}
+                    style={{ padding: '1.5px' }}
+                  >
+                    <div className="w-full h-full rounded-2xl bg-white" />
                   </div>
 
-                  <h4 className="text-sm font-bold text-[#1A1A1A] leading-snug mb-1.5">
-                    {currentLang === 'en' ? feat.titleEn : feat.titleHi}
-                  </h4>
+                  <div className="relative bg-white/95 backdrop-blur-sm border border-[#E8E2D9] group-hover:border-transparent rounded-2xl p-5 h-full flex flex-col gap-3 transition-all duration-300 group-hover:shadow-lg">
+                    {/* Top row: Icon + Tag */}
+                    <div className="flex items-center justify-between">
+                      <motion.div
+                        animate={isHovered ? { scale: 1.1, rotate: -5 } : { scale: 1, rotate: 0 }}
+                        transition={{ type: 'spring', stiffness: 300 }}
+                        className={`w-10 h-10 rounded-xl bg-gradient-to-br ${feat.gradient} flex items-center justify-center shadow-md`}
+                      >
+                        <Icon className="w-[18px] h-[18px] text-white" />
+                      </motion.div>
 
-                  <p className="text-xs text-[#5C544E] leading-relaxed">
-                    {currentLang === 'en' ? feat.descEn : feat.descHi}
-                  </p>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-lg transition-all duration-300 ${
+                          isHovered
+                            ? `bg-gradient-to-r ${feat.gradient} text-white shadow-sm`
+                            : 'bg-[#F3EEE7] text-[#5C544E] border border-[#E8E2D9]'
+                        }`}
+                      >
+                        {currentLang === 'en' ? feat.tagEn : feat.tagHi}
+                      </span>
+                    </div>
+
+                    {/* Title */}
+                    <h4 className="text-[15px] font-bold text-[#1A1A1A] leading-snug">
+                      {currentLang === 'en' ? feat.titleEn : feat.titleHi}
+                    </h4>
+
+                    {/* Description */}
+                    <p className="text-xs text-[#6B635B] leading-relaxed flex-1">
+                      {currentLang === 'en' ? feat.descEn : feat.descHi}
+                    </p>
+
+                    {/* Bottom animated indicator */}
+                    <div className="pt-2">
+                      <div className="h-[3px] rounded-full bg-[#F3EEE7] overflow-hidden">
+                        <motion.div
+                          initial={{ width: '0%' }}
+                          animate={isHovered ? { width: '100%' } : { width: '30%' }}
+                          transition={{ duration: 0.4, ease: 'easeOut' }}
+                          className={`h-full rounded-full bg-gradient-to-r ${feat.gradient}`}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+
+          {/* Live Sample Preview Bar */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={gridInView ? { opacity: 1, y: 0 } : {}}
+            transition={{ delay: 0.4, duration: 0.5 }}
+            className="relative rounded-2xl overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-[#2C4A3E] to-[#1A332A] -z-10" />
+            <div
+              className="absolute inset-0 opacity-[0.04] -z-10"
+              style={{
+                backgroundImage:
+                  'radial-gradient(circle at 1px 1px, #D4AF37 1px, transparent 0)',
+                backgroundSize: '20px 20px',
+              }}
+            />
+
+            <div className="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <motion.div
+                  animate={{ scale: [1, 1.08, 1] }}
+                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                  className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D4AF37] to-[#C05E42] flex items-center justify-center shadow-lg shrink-0"
+                >
+                  <Eye className="w-5 h-5 text-white" />
+                </motion.div>
+                <div>
+                  <span className="text-sm font-bold text-white block">
+                    {currentLang === 'en' ? 'Try a live dossier now' : 'अभी लाइव देखें'}
+                  </span>
+                  <span className="text-[11px] text-white/60">
+                    {currentLang === 'en'
+                      ? 'Experience maps, booking dots, audio & more:'
+                      : 'नक्शे, बुकिंग, ऑडियो अभी अनुभव करें:'}
+                  </span>
                 </div>
+              </div>
 
-                <div className="pt-2.5 border-t border-[#F3EEE7] flex items-center text-[10px] font-bold text-[#2C4A3E] gap-1">
-                  <CheckCircle2 className="w-3 h-3 text-[#2C4A3E]" />
-                  <span>{currentLang === 'en' ? 'Included in every profile' : 'प्रत्येक प्रोफाइल में शामिल'}</span>
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-
-        {/* Live Sample Preview Bar */}
-        <div className="p-4 rounded-2xl bg-[#F3EEE7] border border-[#E8E2D9] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#C05E42] text-white flex items-center justify-center shrink-0">
-              <Eye className="w-4 h-4 text-[#D4AF37]" />
+              <div className="flex flex-wrap items-center gap-2">
+                {[
+                  { id: 'golden-temple-amritsar', nameEn: 'Golden Temple', nameHi: 'स्वर्ण मंदिर' },
+                  { id: 'red-fort', nameEn: 'Red Fort', nameHi: 'लाल किला' },
+                  { id: 'qutub-minar', nameEn: 'Qutub Minar', nameHi: 'क़ुतुब मीनार' },
+                ].map((samp) => (
+                  <Link
+                    key={samp.id}
+                    to={`/result?site=${samp.id}`}
+                    className="group/link px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white border border-white/20 hover:border-white text-white hover:text-[#2C4A3E] text-xs font-bold transition-all duration-300 shadow-sm hover:shadow-md flex items-center gap-1.5 backdrop-blur-sm"
+                  >
+                    <span>{currentLang === 'hi' ? samp.nameHi : samp.nameEn}</span>
+                    <ArrowRight className="w-3 h-3 opacity-60 group-hover/link:opacity-100 group-hover/link:translate-x-0.5 transition-all" />
+                  </Link>
+                ))}
+              </div>
             </div>
-            <div>
-              <span className="text-xs font-bold text-[#1A1A1A] block">
-                {currentLang === 'en' ? 'Want to test a live dossier right now?' : 'किसी भी स्मारक की लाइव रिपोर्ट देखना चाहते हैं?'}
-              </span>
-              <span className="text-[11px] text-[#5C544E]">
-                {currentLang === 'en' 
-                  ? 'Click any sample to experience maps, hotel dots, audio narration, and metro tips:' 
-                  : 'नक्शे, होटल डॉट्स, ऑडियो गाइड और मेट्रो की जानकारी देखने के लिए नमूना चुनें:'}
-              </span>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {[
-              { id: 'golden-temple-amritsar', nameEn: 'Golden Temple Amritsar', nameHi: 'स्वर्ण मंदिर' },
-              { id: 'red-fort', nameEn: 'Red Fort Delhi', nameHi: 'लाल किला' },
-              { id: 'qutub-minar', nameEn: 'Qutub Minar', nameHi: 'क़ुतुब मीनार' },
-            ].map((samp) => (
-              <Link
-                key={samp.id}
-                to={`/result?site=${samp.id}`}
-                className="px-3 py-1.5 rounded-xl bg-white hover:bg-[#2C4A3E] hover:text-white border border-[#D5CDC2] text-[#2C4A3E] text-xs font-bold transition-all shadow-2xs flex items-center gap-1.5"
-              >
-                <span>{currentLang === 'hi' ? samp.nameHi : samp.nameEn}</span>
-                <ArrowRight className="w-3 h-3 opacity-70" />
-              </Link>
-            ))}
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>
