@@ -65,9 +65,15 @@ export const NearbyExplorerSection: React.FC<NearbyExplorerSectionProps> = ({
   // Retrieve curated local dataset if available
   const nearbyData = getCuratedNearbyForSite(siteId);
 
+  // Clean, sanitized city & state (guarantee no transit strings)
+  const isTransitString = (str?: string) => !!str && (/metro|station|line|\(/i.test(str) || str.length > 30);
+  const cleanCity = (!isTransitString(city) && city) ? city : ((!isTransitString(state) && state) ? state : 'Delhi');
+  const cleanState = (!isTransitString(state) && state) ? state : 'Delhi';
+  const cleanArea = (!isTransitString(areaName) && areaName) ? areaName : `${cleanCity}, ${cleanState}`;
+
   const effectiveLat = latitude || nearbyData?.coordinates.latitude;
   const effectiveLng = longitude || nearbyData?.coordinates.longitude;
-  const effectiveArea = areaName || nearbyData?.coordinates.areaName || city || state || 'India';
+  const effectiveArea = cleanArea;
 
   // If curated Delhi list exists, use it; otherwise use AI-generated nearbyAttractions
   const fallbackHeritageList = (nearbyAttractions || []).map((att, idx) => ({
@@ -92,7 +98,7 @@ export const NearbyExplorerSection: React.FC<NearbyExplorerSectionProps> = ({
     fetchNearbyHotels({
       siteId,
       placeName: siteName,
-      city: city || state || areaName || 'Delhi',
+      city: cleanCity,
       latitude: effectiveLat,
       longitude: effectiveLng,
     }).then((res) => {
@@ -106,7 +112,7 @@ export const NearbyExplorerSection: React.FC<NearbyExplorerSectionProps> = ({
     return () => {
       isSubscribed = false;
     };
-  }, [siteId, siteName, effectiveLat, effectiveLng, state, areaName]);
+  }, [siteId, siteName, effectiveLat, effectiveLng, cleanCity]);
 
   const enabledPlatforms = bookingPlatforms.filter((p) => p.enabled);
 
@@ -612,29 +618,51 @@ export const NearbyExplorerSection: React.FC<NearbyExplorerSectionProps> = ({
           <div className="p-4 rounded-2xl bg-[#F3EEE7] border border-[#E8E2D9] flex flex-col sm:flex-row sm:items-center justify-between gap-3 mt-1">
             <div className="flex flex-col">
               <span className="text-xs font-bold text-[#1A1A1A]">
-                {currentLang === 'en' ? `Looking for more hotels around ${effectiveArea}?` : `क्या आप ${effectiveArea} के आसपास अन्य विकल्प ढूंढ रहे हैं?`}
+                {currentLang === 'en'
+                  ? `Looking for more hotels in ${cleanCity} near ${siteName}?`
+                  : `क्या आप ${siteName} (${cleanCity}) के आसपास अन्य विकल्प ढूंढ रहे हैं?`}
               </span>
               <span className="text-[11px] text-[#5C544E]">
-                {currentLang === 'en' ? `Search all available stays near ${siteName} on partner sites:` : `सभी उपलब्ध कमरे सीधे इन वेबसाइट्स पर खोजें:`}
+                {currentLang === 'en'
+                  ? `Search all available stays near ${siteName} on partner booking sites:`
+                  : `सभी उपलब्ध कमरे सीधे इन वेबसाइट्स पर खोजें:`}
               </span>
             </div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {enabledPlatforms.slice(0, 3).map((platform) => {
+            <div className="flex items-center gap-2">
+              {enabledPlatforms.map((platform) => {
                 const areaUrl = buildBookingUrl(platform.urlTemplate, {
                   placeName: siteName,
-                  city: state || areaName || 'Delhi',
+                  city: cleanCity,
+                  lat: effectiveLat,
+                  lng: effectiveLng,
                 });
                 return (
-                  <a
-                    key={`gen-${platform.id}`}
-                    href={areaUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-3 py-1.5 rounded-xl bg-white border border-[#D5CDC2] text-[#2C4A3E] text-xs font-bold hover:bg-[#2C4A3E] hover:text-white transition-all flex items-center gap-1 shadow-2xs"
-                  >
-                    <span>{platform.name}</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
+                  <div key={`gen-dot-${platform.id}`} className="relative group">
+                    <a
+                      href={areaUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Search stays on ${platform.name}`}
+                      style={{ backgroundColor: platform.badgeColor }}
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-white shadow-2xs hover:scale-115 active:scale-95 transition-all duration-200 cursor-pointer border border-black/10 focus-visible:ring-2 focus-visible:ring-[#C05E42]"
+                    >
+                      <span className="text-[10px] font-black uppercase tracking-tight">
+                        {platform.name.substring(0, 2)}
+                      </span>
+                    </a>
+
+                    {/* Floating Tooltip */}
+                    <div
+                      role="tooltip"
+                      className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ease-out z-30 pointer-events-none transform group-hover:-translate-y-0.5"
+                    >
+                      <div className="bg-[#1A1A1A] text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-xl whitespace-nowrap flex items-center gap-1.5 border border-white/10">
+                        <span>{platform.name}</span>
+                        <ExternalLink className="w-2.5 h-2.5 text-white/80 shrink-0" />
+                      </div>
+                      <div className="w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-[#1A1A1A] mx-auto" />
+                    </div>
+                  </div>
                 );
               })}
             </div>

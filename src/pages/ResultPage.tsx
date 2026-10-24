@@ -173,10 +173,31 @@ export const ResultPage: React.FC<ResultPageProps> = ({ currentLang }) => {
     return site.folkloreOrLegends || [];
   }, [site, currentLang]);
 
-  // Derived Category and City metadata
+  // Derived Category and City metadata (safeguarded against transit strings)
   const siteCategory = site?.tags?.[0] || 'Monument';
-  const siteCity = site?.city || site?.state || 'India';
-  const siteArea = site?.travelTips?.nearestMetro || (site?.city ? `${site.city}, ${site?.state || 'India'}` : (site?.state ? `${site.state}, India` : 'India'));
+  const siteCity = useMemo(() => {
+    if (site?.city && !/metro|station|line|\(/i.test(site.city)) return site.city;
+    const id = (site?.id || '').toLowerCase();
+    if (id.includes('amritsar') || id.includes('jallianwala') || id.includes('wagah')) return 'Amritsar';
+    if (id.includes('jaipur') || id.includes('jantar-mantar')) return 'Jaipur';
+    if (id.includes('madurai') || id.includes('meenakshi')) return 'Madurai';
+    if (id.includes('konark')) return 'Konark';
+    if (id.includes('noida') || id.includes('iskcon')) return 'Noida';
+    return site?.state || 'Delhi';
+  }, [site]);
+
+  const siteState = useMemo(() => {
+    if (site?.state && !/metro|station|line|\(/i.test(site.state)) return site.state;
+    const id = (site?.id || '').toLowerCase();
+    if (id.includes('amritsar') || id.includes('jallianwala') || id.includes('wagah')) return 'Punjab';
+    if (id.includes('jaipur') || id.includes('jantar-mantar')) return 'Rajasthan';
+    if (id.includes('madurai') || id.includes('meenakshi')) return 'Tamil Nadu';
+    if (id.includes('konark')) return 'Odisha';
+    if (id.includes('noida') || id.includes('iskcon')) return 'Uttar Pradesh';
+    return 'Delhi';
+  }, [site]);
+
+  const siteArea = `${siteCity}, ${siteState}`;
 
   const handleShare = () => {
     if (navigator.clipboard) {
@@ -870,8 +891,8 @@ export const ResultPage: React.FC<ResultPageProps> = ({ currentLang }) => {
                 areaName={siteArea}
                 latitude={site.coordinates?.lat || site.latitude}
                 longitude={site.coordinates?.lng || site.longitude}
-                state={site.state}
-                city={site.city}
+                state={siteState}
+                city={siteCity}
                 nearbyAttractions={site.nearbyAttractions}
                 currentLang={currentLang}
               />

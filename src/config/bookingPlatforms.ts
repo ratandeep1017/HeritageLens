@@ -43,7 +43,7 @@ export const DEFAULT_BOOKING_PLATFORMS: BookingPlatformConfig[] = [
   },
 ];
 
-const PLATFORMS_STORAGE_KEY = 'heritagelens_booking_platforms_config';
+const PLATFORMS_STORAGE_KEY = 'heritagelens_booking_platforms_config_v3';
 
 /**
  * Retrieves configured booking platforms from localStorage (customized by admin)
@@ -87,24 +87,42 @@ export interface BookingUrlParams {
 
 /**
  * Builds a dynamic, fully URL-encoded deep search URL for any configured platform.
+ * Strips transit station phrases from city, and avoids prepending "hotels near "
+ * which causes MakeMyTrip and Booking.com to treat it as a literal hotel title.
  */
 export function buildBookingUrl(
   template: string,
   params: BookingUrlParams
 ): string {
-  const city = (params.city || 'Delhi').trim();
+  // 1. Sanitize city: strip out transit/metro station names or overly long lines
+  let rawCity = (params.city || '').trim();
+  if (/metro|station|line|\(/i.test(rawCity) || rawCity.length > 30) {
+    rawCity = 'Delhi';
+  }
+  const city = rawCity || 'Delhi';
   const place = (params.placeName || '').trim();
   const hotel = (params.hotelName || '').trim();
 
-  // If a specific hotel is being viewed, search for that hotel + city;
-  // otherwise search for hotels near the monument/place.
-  const rawQuery = hotel
-    ? `${hotel} ${city}`
-    : `hotels near ${place} ${city}`.trim();
+  // 2. Build clean query without literal "hotels near" prefix so MMT and Booking POI matching succeeds
+  let rawQuery = '';
+  if (hotel) {
+    rawQuery = hotel.toLowerCase().includes(city.toLowerCase()) ? hotel : `${hotel} ${city}`;
+  } else if (place) {
+    rawQuery = place.toLowerCase().includes(city.toLowerCase()) ? place : `${place} ${city}`;
+  } else {
+    rawQuery = city;
+  }
+  rawQuery = rawQuery.trim();
 
   let url = template;
 
-  url = url.replace(/\{query\}/gi, encodeURIComponent(rawQuery));
+  // Google Travel Hotels works best with explicit "hotels near" prefix
+  if (template.includes('google.com/travel/hotels') && !rawQuery.toLowerCase().startsWith('hotels')) {
+    url = url.replace(/\{query\}/gi, encodeURIComponent(`hotels near ${rawQuery}`));
+  } else {
+    url = url.replace(/\{query\}/gi, encodeURIComponent(rawQuery));
+  }
+
   url = url.replace(/\{place\}/gi, encodeURIComponent(place || city));
   url = url.replace(/\{city\}/gi, encodeURIComponent(city));
 

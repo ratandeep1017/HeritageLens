@@ -58,7 +58,9 @@
         "Sitting on dangerous ledge edges is prohibited"
       ],
       "timings": "9:00 AM – 5:30 PM (Daily)"
-    }
+    },
+    "city": "Delhi",
+    "state": "Delhi"
   },
   {
     "architecturalStyle": "Modern Border Complex and Colosseum Amphitheatre",
@@ -367,7 +369,9 @@
         "No tobacco or alcohol allowed"
       ],
       "timings": "Open 24 hours, 7 days a week"
-    }
+    },
+    "city": "Delhi",
+    "state": "Delhi"
   },
   {
     "architecturalStyle": "Traditional Sikh Architectural Style",
@@ -428,7 +432,9 @@
         "Shoes must be deposited at Joda Ghar"
       ],
       "timings": "Open 24 hours daily"
-    }
+    },
+    "city": "Delhi",
+    "state": "Delhi"
   },
   {
     "architecturalStyle": "Mughal / Persian Charbagh Architecture",
@@ -489,7 +495,9 @@
         "Wheelchair accessibility available in central pathways"
       ],
       "timings": "Sunrise to Sunset (Daily)"
-    }
+    },
+    "city": "Delhi",
+    "state": "Delhi"
   },
   {
     "architecturalStyle": "Modern Indian Temple Architecture with Nagara-inspired elements",
@@ -561,7 +569,9 @@
         "Photography may be restricted inside the main sanctum sanctorum."
       ],
       "timings": "4:30 AM – 1:00 PM & 4:00 PM – 8:30 PM (Daily)"
-    }
+    },
+    "city": "Noida",
+    "state": "Uttar Pradesh"
   },
   {
     "architecturalStyle": "Beaux-Arts Classical Triumphal Arch (Sandstone)",
@@ -621,7 +631,9 @@
         "Pedestrian pathways strictly maintained along Kartavya Path"
       ],
       "timings": "Open 24 hours (Best visited in late evenings)"
-    }
+    },
+    "city": "Delhi",
+    "state": "Delhi"
   },
   {
     "architecturalStyle": "Modernist Commemorative Memorial & Colonial-era Walled Enclosure",
@@ -765,7 +777,9 @@
         "Footwear must be taken off at entrance"
       ],
       "timings": "7:00 AM – 12:00 PM and 1:30 PM – 6:30 PM (Closed to tourists during prayer times)"
-    }
+    },
+    "city": "Delhi",
+    "state": "Delhi"
   },
   {
     "architecturalStyle": "Mughal-era Astronomical Architecture in Stone",
@@ -1027,7 +1041,9 @@
         "Check current park timings and access conditions before travelling because operating arrangements can change."
       ],
       "timings": "Commonly open from early morning until evening; visitors should verify current entry and park timings before visiting."
-    }
+    },
+    "city": "Delhi",
+    "state": "Delhi"
   },
   {
     "architecturalStyle": "Modern Expressionist / Biomimetic Architecture",
@@ -1088,7 +1104,9 @@
         "Shoes must be deposited at the counter"
       ],
       "timings": "9:00 AM – 5:30 PM (Winter), 9:00 AM – 7:00 PM (Summer), Closed on Mondays"
-    }
+    },
+    "city": "Delhi",
+    "state": "Delhi"
   },
   {
     "architecturalStyle": "Dravidian Architecture",
@@ -1312,7 +1330,9 @@
         "Boating lake is subject to seasonal water management"
       ],
       "timings": "7:00 AM – 5:00 PM (Sound and light show in the evening)"
-    }
+    },
+    "city": "Delhi",
+    "state": "Delhi"
   },
   {
     "architecturalStyle": "Indo-Islamic Afghan Style with Fluted Columns",
@@ -1373,7 +1393,9 @@
         "Climbing inside the minaret has been restricted since 1981 for safety."
       ],
       "timings": "7:00 AM – 5:00 PM (Daily)"
-    }
+    },
+    "city": "Delhi",
+    "state": "Delhi"
   },
   {
     "architecturalStyle": "Minimalist Modern Memorial Architecture",
@@ -1445,7 +1467,9 @@
         "Photography may be restricted in certain sensitive zones."
       ],
       "timings": "6:00 AM to 6:00 PM (Open all days)"
-    }
+    },
+    "city": "Delhi",
+    "state": "Delhi"
   },
   {
     "architecturalStyle": "British Imperial Architecture with prominent Indian motifs (Classical Revival and Indo-Saracenic elements)",
@@ -1526,7 +1550,8 @@
         "Visitors must adhere to the designated tour timings and security protocols."
       ],
       "timings": "Circuit-wise guided tours available on specific days (Generally Friday, Saturday, and Sunday). Advance online booking required."
-    }
+    },
+    "city": "Delhi"
   },
   {
     "architecturalStyle": "Indo-Islamic / Mughal Architecture",
@@ -1588,7 +1613,9 @@
         "Security check at Lahori Gate"
       ],
       "timings": "9:30 AM – 4:30 PM (Closed on Mondays)"
-    }
+    },
+    "city": "Delhi",
+    "state": "Delhi"
   },
   {
     "architecturalStyle": "Sur Dynastic Military Architecture / Indo-Islamic Rubble Masonry",
@@ -1679,7 +1706,8 @@
         "Do not climb or deface the ancient rubble ramparts or protected INA memorial structures."
       ],
       "timings": "09:30 AM to 04:30 PM (Closed on Mondays; access governed via Red Fort entry)"
-    }
+    },
+    "city": "Delhi"
   },
   {
     "architecturalStyle": "Kalinga Architecture (Nagara style variant)",
@@ -1833,6 +1861,8 @@
         "Pets are allowed only on specific days/times with guidelines."
       ],
       "timings": "7:00 AM to 6:00 PM (All days of the week)"
-    }
+    },
+    "city": "Delhi",
+    "state": "Delhi"
   }
 ]
