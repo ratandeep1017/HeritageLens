@@ -4,7 +4,7 @@ import { HeritageSite } from '../types';
 import { isMonumentMatch } from '../utils/monumentMatcher';
 import { resolveSiteCoordinates, inferStateFromText } from '../utils/geoCoordinates';
 
-const STORAGE_KEY = 'heritagelens_custom_heritage_sites_v2';
+const STORAGE_KEY = 'heritagelens_custom_heritage_sites_v3';
 const EVENT_NAME = 'heritagelens_heritage_data_updated';
 
 // Relative API Base URL
@@ -67,44 +67,11 @@ export const HeritageDataStore = {
       if (res.ok) {
         const json = await res.json();
         if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          // Merge server data with current local cache so newly discovered or edited sites are never wiped
-          let localList: HeritageSite[] = [];
-          try {
-            const localStored = localStorage.getItem(STORAGE_KEY);
-            if (localStored) localList = JSON.parse(localStored);
-          } catch {}
-
-          const mergedMap = new Map<string, HeritageSite>();
-          // 1. Populate server data
-          for (const s of json.data) {
-            if (s && s.id) mergedMap.set(s.id.toLowerCase(), s);
-          }
-          // 2. Preserve any local custom sites and locally updated photos
-          if (Array.isArray(localList)) {
-            for (const s of localList) {
-              if (s && s.id) {
-                const sId = s.id.toLowerCase();
-                const serverVer = mergedMap.get(sId);
-                if (!serverVer) {
-                  mergedMap.set(sId, s);
-                  // Background push to server
-                  fetch(`${API_BASE}/api/sites`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(s)
-                  }).catch(() => {});
-                } else if (s.imageUrl && s.imageUrl !== serverVer.imageUrl) {
-                  // Local user customized or updated this photo - preserve local photo!
-                  mergedMap.set(sId, { ...serverVer, imageUrl: s.imageUrl, imageAlt: s.imageAlt || serverVer.imageAlt });
-                }
-              }
-            }
-          }
-
-          const finalList = Array.from(mergedMap.values());
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(finalList));
+          // Server dataset is authoritative - save directly without resurrecting stale local entries
+          const enrichedList = json.data.map(enrichSiteWithLocation);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(enrichedList));
           this.notifySubscribers();
-          return finalList;
+          return enrichedList;
         }
       }
     } catch (err) {
@@ -114,35 +81,22 @@ export const HeritageDataStore = {
   },
 
   /**
-   * Returns all heritage sites (from memory / local cache, merged with baseline 11 sites).
+   * Returns all heritage sites (from memory / local cache, fallback to baseline 11 sites).
    */
   getAllSites(): HeritageSite[] {
-    const baseSites = JSON.parse(JSON.stringify(DELHI_HERITAGE_SITES)) as HeritageSite[];
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Merge baseSites and custom stored sites by ID
-          const mergedMap = new Map<string, HeritageSite>();
-          // Put base sites first
-          for (const s of baseSites) {
-            if (s && s.id) mergedMap.set(s.id.toLowerCase(), s);
-          }
-          // Merge / add user's customized & newly added sites
-          for (const s of parsed) {
-            if (s && s.id) {
-              const existing = mergedMap.get(s.id.toLowerCase());
-              mergedMap.set(s.id.toLowerCase(), { ...existing, ...s });
-            }
-          }
-          return Array.from(mergedMap.values()).map(enrichSiteWithLocation);
+          return parsed.map(enrichSiteWithLocation);
         }
       }
     } catch (error) {
       console.warn('Failed to parse customized heritage sites from localStorage:', error);
     }
-    // Return deep copy of default sites with location enrichment
+    // Return deep copy of default verified sites with location enrichment
+    const baseSites = JSON.parse(JSON.stringify(DELHI_HERITAGE_SITES)) as HeritageSite[];
     return baseSites.map(enrichSiteWithLocation);
   },
 
