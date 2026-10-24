@@ -557,34 +557,47 @@ export const NearbyExplorerSection: React.FC<NearbyExplorerSectionProps> = ({
                       </span>
                     </div>
 
-                    {/* "Book On" website buttons */}
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-[10px] font-bold text-[#8C8276] uppercase tracking-wide">
-                        {currentLang === 'en' ? 'Book or check rates on:' : 'कमरे देखें व बुक करें:'}
+                    {/* "Book On" website colored dots with hover tooltip */}
+                    <div className="flex items-center justify-between pt-1">
+                      <span className="text-[10px] font-bold text-[#8C8276] uppercase tracking-wider">
+                        {currentLang === 'en' ? 'Book on:' : 'बुकिंग साइट्स:'}
                       </span>
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex items-center gap-2">
                         {enabledPlatforms.map((platform) => {
                           const targetUrl = buildBookingUrl(platform.urlTemplate, {
                             hotelName: hotel.name,
                             placeName: siteName,
-                            city: state || areaName || 'Delhi',
+                            city: city || state || areaName || 'Delhi',
                             lat: hotel.latitude,
                             lng: hotel.longitude,
                           });
 
                           return (
-                            <a
-                              key={platform.id}
-                              href={targetUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ backgroundColor: platform.badgeColor, color: platform.textColor || '#fff' }}
-                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold shadow-2xs hover:opacity-90 active:scale-95 transition-all cursor-pointer"
-                              title={`Check ${hotel.name} on ${platform.name}`}
-                            >
-                              <span>{platform.name}</span>
-                              <ExternalLink className="w-2.5 h-2.5 shrink-0 opacity-80" />
-                            </a>
+                            <div key={platform.id} className="relative group flex items-center justify-center">
+                              <a
+                                href={targetUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label={`Book on ${platform.name}`}
+                                style={{ backgroundColor: platform.badgeColor }}
+                                className="w-6 h-6 rounded-full flex items-center justify-center shadow-xs transition-all duration-200 transform hover:scale-125 hover:shadow-md cursor-pointer ring-2 ring-white/90 hover:ring-offset-1 hover:ring-[#2C4A3E]/30"
+                              >
+                                {/* Inner dot for brand contrast */}
+                                <span className="w-1.5 h-1.5 rounded-full bg-white/70 group-hover:bg-white transition-colors" />
+                              </a>
+
+                              {/* Hover Tooltip displaying website name */}
+                              <div
+                                role="tooltip"
+                                className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 ease-out z-30 pointer-events-none transform group-hover:-translate-y-0.5"
+                              >
+                                <div className="bg-[#1A1A1A] text-white text-[11px] font-bold px-2.5 py-1 rounded-lg shadow-xl whitespace-nowrap flex items-center gap-1.5 border border-white/10">
+                                  <span>{platform.name}</span>
+                                  <ExternalLink className="w-2.5 h-2.5 text-white/80 shrink-0" />
+                                </div>
+                                <div className="w-0 h-0 border-x-4 border-x-transparent border-t-4 border-t-[#1A1A1A] mx-auto" />
+                              </div>
+                            </div>
                           );
                         })}
                       </div>
